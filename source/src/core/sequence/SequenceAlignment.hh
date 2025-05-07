@@ -25,6 +25,7 @@
 
 // Project headers
 #include <core/types.hh>
+#include <core/chemical/AA.hh>
 #include <core/id/SequenceMapping.hh>
 
 // Package headers
@@ -86,6 +87,7 @@ public:
 	/// @brief initialize this SequenceAlignment object from the
 	/// given file.
 	void read_from_file( std::string const & filename );
+    void read_from_file2( std::string const & filename );
 
 	/// @brief returns a SequenceMapping of the sequence at index
 	/// idx1 mapped to the sequence at idx2.
@@ -107,6 +109,9 @@ public:
 	/// calculate_score_sum_of_pairs.
 	utility::vector1< Real >
 	calculate_per_position_scores( ScoringSchemeOP ss ) const;
+    
+    std::map< core::chemical::AA, Real >
+    calculate_per_position_aaprob ( Size const pos ) const;
 
 	/// @brief Returns true if all of the sequences are
 	/// "in-frame," which means that residue x in the first

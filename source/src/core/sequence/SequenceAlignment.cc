@@ -13,6 +13,7 @@
 
 #include <core/types.hh>
 
+#include <core/chemical/AA.hh>
 #include <core/sequence/ScoringScheme.hh>
 #include <core/sequence/Sequence.hh>
 #include <core/id/SequenceMapping.hh>
@@ -20,6 +21,7 @@
 
 #include <utility/exit.hh>
 #include <utility/io/izstream.hh>
+#include <utility/string_util.hh>
 
 #include <ObjexxFCL/string.functions.hh>
 
@@ -131,6 +133,38 @@ void SequenceAlignment::read_from_file( std::string const & filename ) {
 		temp_seq->read_data( input );
 		add_sequence( temp_seq );
 	}
+} // read_from_file
+
+/// @brief
+/// read files
+void SequenceAlignment::read_from_file2( std::string const & filename ) {
+    utility::io::izstream data( filename );
+    if ( !data ) {
+        utility_exit_with_message(
+            "ERROR: Unable to open alignment file: " +  filename
+        );
+    }
+
+    Size count ( 0 ), length( 0 );
+    std::string line;
+    while ( getline( data, line ) ) {
+        
+        utility::vector1< std::string > tokens ( utility::string_split( line ) );
+        if( tokens[1][0] == '>' ) continue;
+        
+        runtime_assert( tokens.size() == 1 );
+        
+        std::string seq( tokens[ 1 ] );
+        seq.erase(std::remove(seq.begin(), seq.end(), ':'), seq.end());
+        if( count == 0 ) {
+            length = seq.size();
+        } else {
+            runtime_assert( length == seq.size() );
+        }
+        count ++;
+        SequenceOP temp_seq( new Sequence ( seq, "seq_" + std::to_string(count) ) );
+        add_sequence( temp_seq );
+    }
 } // read_from_file
 
 void SequenceAlignment::read_data( std::istream & in ) {
@@ -273,6 +307,56 @@ utility::vector1< Real > SequenceAlignment::calculate_per_position_scores(
 	} // seq i
 
 	return scores;
+}
+
+std::map< core::chemical::AA, Real >
+SequenceAlignment::calculate_per_position_aaprob ( Size const pos ) const
+{
+    
+    typedef core::chemical::AA AA;
+    using core::chemical::aa_from_oneletter_code;
+        
+    std::map< AA, Size > freq_aa;
+    freq_aa[ aa_from_oneletter_code( 'A' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'C' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'D' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'E' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'F' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'G' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'H' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'I' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'K' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'L' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'M' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'N' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'P' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'Q' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'R' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'S' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'T' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'V' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'W' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'Y' ) ] = 0;
+    freq_aa[ aa_from_oneletter_code( 'X' ) ] = 0;
+    
+    for ( Size i = 1; i <= size(); ++i ) {
+        AA aa = aa_from_oneletter_code( sequence(i)->at(pos) );
+        freq_aa[ aa ] ++;
+    }
+        
+    Size tot( 0 );
+    for ( std::map< AA, Size >::iterator ite=freq_aa.begin(); ite!=freq_aa.end(); ite++ ) {
+        tot += ite->second;
+    }
+    
+    std::map< AA, Real > prob_aa;
+    for ( std::map< AA, Size >::iterator ite=freq_aa.begin(); ite!=freq_aa.end(); ite++ ) {
+        Real prob = Real( freq_aa[ ite->first] )/Real( tot );
+        prob_aa[ ite->first ] = prob;
+    }
+        
+    return prob_aa;
+    
 }
 
 void SequenceAlignment::data_integrity_check() const {
