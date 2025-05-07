@@ -251,7 +251,7 @@ DesSeqOperator2::apply( Pose & pose )
     Size design_cycles( 3 );
     
     // --- Initialize History ---
-    history_.clear();                                                                                                                                         
+    history_.clear();
     history_ << "# ---------------------------------------------------------------- # " << std::endl;
     history_ << "# Protein Design Protocol: DesSeqOperator2" << std::endl;
     history_ << "# Output Job Name: " << job_output_name << std::endl;

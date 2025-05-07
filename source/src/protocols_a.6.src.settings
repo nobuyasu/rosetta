@@ -153,6 +153,9 @@ sources = {
 		"SetAACompositionPotential",
 		"SetSecStructEnergies",
 	],
+	"protocols/fldsgn/deseq": [
+		"DesSeqOperator2",
+	],
 	"protocols/fldsgn/potentials/sspot": [
 		"HSPairPotential",
 		"NatbiasHelicesSheetPotential",
