@@ -31,11 +31,7 @@
 
 #include <protocols/minimization_packing/PackRotamersMover.fwd.hh>
 #include <protocols/relax/FastRelax.fwd.hh>
-
-#include <protocols/minimization_packing/symmetry/SymPackRotamersMover.fwd.hh>
 #include <protocols/minimization_packing/symmetry/SymMinMover.fwd.hh>
-
-
 #include <protocols/moves/Mover.hh>
 
 #include <utility/vector1.hh>
@@ -49,7 +45,6 @@ class DesSeqOperator2 : public protocols::moves::Mover
 {
 public:
     
-
     typedef core::Size Size;
     typedef core::Real Real;
     typedef std::string String;
@@ -81,8 +76,6 @@ public:
     typedef protocols::minimization_packing::PackRotamersMover PackRotamersMover;
     typedef protocols::minimization_packing::PackRotamersMoverOP PackRotamersMoverOP;
     
-    typedef protocols::minimization_packing::symmetry::SymPackRotamersMover SymPackRotamerMover;
-    typedef protocols::minimization_packing::symmetry::SymPackRotamersMoverOP SymPackRotamerMoverOP;
     typedef protocols::minimization_packing::symmetry::SymMinMover SymMinMover;
     typedef protocols::minimization_packing::symmetry::SymMinMoverOP SymMinMoverOP;
     

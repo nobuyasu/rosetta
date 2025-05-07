@@ -94,6 +94,17 @@ DesSeqOperator2::initialize()
 {
     history_poses_.clear();
     history_.clear();
+
+    // Setup score functions
+    ScoreFunctionOP sfxn_design = core::scoring::get_score_function();
+    sfxn_design->set_weight(core::scoring::fa_rep, 0.44);
+    sfxn_design->set_weight(core::scoring::fa_sol, 0.65);
+    this->scorefxn_design(sfxn_design); 
+
+    ScoreFunctionOP sfxn_relax = core::scoring::get_score_function();
+    sfxn_relax->set_weight(core::scoring::fa_rep, 0.55);
+    sfxn_relax->set_weight(core::scoring::fa_sol, 1.0);
+    this->scorefxn_relax(sfxn_relax);
 }
     
 
@@ -164,11 +175,11 @@ DesSeqOperator2::pack_and_min(
         
         // --- 1. Packing Step ---
         if( is_symmetric ) {
-            TR << "Applying SymPackRotamersMover..." << std::endl;
-            SymPackRotamerMoverOP sympack = SymPackRotamerMoverOP( new SymPackRotamerMover() );
-            sympack->score_function( scorefxn_design() );
-            // sympack->task  ( ptask );
-            sympack->apply( pose );
+            TR << "Applying PackRotamersMover..." << std::endl;
+            PackRotamersMoverOP pack( new PackRotamersMover() );
+            pack->score_function( scorefxn_design() );
+            // pack->task( task );
+            pack->apply( pose );
         } else {
             TR << "Applying PackRotamersMover..." << std::endl;
             PackRotamersMoverOP pack( new PackRotamersMover() );
