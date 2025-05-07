@@ -14,6 +14,7 @@
 #ifndef _INCLUDED_protocols_simple_moves_symmetry_DetectSymmetryMover_hh_
 #define _INCLUDED_protocols_simple_moves_symmetry_DetectSymmetryMover_hh_
 
+#include <protocols/symmetry/DetectSymmetryMover.fwd.hh>
 #include <core/pose/Pose.fwd.hh>
 #include <protocols/moves/Mover.hh>
 #include <numeric/xyz.functions.hh>

@@ -52,7 +52,7 @@ using core::Size;
 
 ////////////////////
 DetectSymmetry::DetectSymmetry():
-	subunit_tolerance_( 0.01),
+	subunit_tolerance_( 0.01 ),
 	plane_tolerance_( 1e-3 ),
 	ignore_single_jump_( false ),
 	keep_pdb_info_labels_( false ),
@@ -86,7 +86,11 @@ DetectSymmetry::apply(Pose & pose) {
 		Pose test_pose( pose, i*seq1.size()+1 , (i + 1)*seq1.size() );
 		core::Real rms = core::scoring::CA_rmsd(ref_pose, test_pose);
 		TR.Debug << "rms chain " << i + 1 << " " << rms << std::endl;
-		if ( rms > subunit_tolerance_ ) utility_exit_with_message("rmsd between subunits higher than subunit tolerance");
+        if ( rms > subunit_tolerance_ ) {
+            TR << "rmsd between subunits: " << rms
+               << " > tolerance: " << subunit_tolerance_ << std::endl;
+            utility_exit_with_message("rmsd between subunits higher than subunit tolerance");
+        }
 	}
 	TR << seq1.size() << " residues per subunit" << std::endl;
 
@@ -113,6 +117,10 @@ DetectSymmetry::apply(Pose & pose) {
 	//check that the com of all subunits is in the xy-plane
 	for ( core::Size i = 0; i < symmetric_type; i++ ) {
 		xyzVector cm_chain = core::pose::center_of_mass(pose, i*seq1.size()+1, i * seq1.size() + seq1.size());
+        for ( core::Size i=1; i<=3; ++i ) {
+            TR << cm_chain[i] << " ";
+        }
+        TR << std::endl;
 		runtime_assert_msg(cm_chain[2] > -1*plane_tolerance_ && cm_chain[2] < plane_tolerance_, "com of chain " + std::to_string( i ) +  " is not properly aligned to the x-y plane");
 	}
 

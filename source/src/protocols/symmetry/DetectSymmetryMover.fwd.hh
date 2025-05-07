@@ -20,9 +20,9 @@
 namespace protocols {
 namespace symmetry {
 
-class DetectSymmetryMover;
-typedef utility::pointer::shared_ptr< DetectSymmetryMover > DetectSymmetryMoverOP;
-typedef utility::pointer::shared_ptr< DetectSymmetryMover const > DetectSymmetryMoverCOP;
+class DetectSymmetry;
+typedef utility::pointer::shared_ptr< DetectSymmetry > DetectSymmetryOP;
+typedef utility::pointer::shared_ptr< DetectSymmetry const > DetectSymmetryCOP;
 
 } // moves
 } // rosetta
