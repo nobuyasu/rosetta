@@ -9110,4 +9110,16 @@ EX_SIX_QUARTER_STEP_STDDEVS   7          +/- 0.25, 0.5, 0.75, 1, 1.25 & 1.5 sd; 
 	Option_Group( 'solvent_exposure',
 		Option( 'method', 'String', desc="Method to calculate neighbor count, sphere or cone.", default="sphere", legal=["cone", "sphere"]),
 	),
+
+	## for per_residue_solvent_exposure
+	Option_Group( 'deseq',
+		Option( 'run_mode', 'Integer', desc="Run mode 1-5.", default="0" ),
+		Option( 'dump_trj', 'Boolean', desc="Dump design trajectory", default="false" ),
+		Option( 'fav_seqs', 'FileVector', desc="Favorite sequences to be used for making PSSM", default="" ),
+		Option( 'resfile', 'String', desc="Resfile", default="" ),
+		Option( 'nstruct', 'Integer', desc="Number of designed structure to be generated", default="1" ),
+		Option( 'outdir', 'String', desc="output directory name", default="./" ),
+		Option( 'symmetry', 'Boolean', desc="run symmetry design", default="false" ),
+	),
+
 ) # end options
