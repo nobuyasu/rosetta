@@ -15,15 +15,18 @@
 
 // unit headers
 #include <protocols/fldsgn/deseq/DesSeqOperator2.fwd.hh>
+#include <protocols/fldsgn/deseq/FindBuriedUnsatisfiedPolars.hh>
+#include <protocols/fldsgn/deseq/FindExposedHydrophobics.hh>
 
 // project headers
+#include <core/chemical/AA.hh>
 #include <core/types.hh>
 #include <core/pose/Pose.fwd.hh>
 #include <core/scoring/ScoreFunction.fwd.hh>
 #include <core/pack/task/TaskFactory.fwd.hh>
 #include <core/pack/task/operation/TaskOperation.fwd.hh>
 #include <core/pack/task/PackerTask.fwd.hh>
-
+#include <core/kinematics/MoveMap.fwd.hh>
 #include <core/scoring/ScoreType.hh>
 #include <core/scoring/ScoreFunction.fwd.hh>
 #include <core/scoring/ScoreFunctionFactory.hh>
@@ -41,6 +44,18 @@ namespace protocols {
 namespace fldsgn {
 namespace deseq {
 
+enum DesignCtrl
+{
+    vanilla  = 1,
+    bpolar   = 2,
+    exhp     = 3,
+    favaa    = 4,
+    force_aa = 5,
+    nataa    = 6,
+    natrot   = 7,
+    num_des_ctrl = natrot        
+};
+
 class DesSeqOperator2 : public protocols::moves::Mover
 {
 public:
@@ -54,6 +69,9 @@ public:
             
     typedef core::pose::Pose Pose;
     typedef core::pose::PoseOP PoseOP;
+
+    typedef core::kinematics::MoveMap MoveMap;
+    typedef core::kinematics::MoveMapOP MoveMapOP;
 
     typedef core::scoring::ScoreType ScoreType;
     typedef core::scoring::ScoreFunction ScoreFunction;
@@ -79,22 +97,27 @@ public:
     typedef protocols::minimization_packing::symmetry::SymMinMover SymMinMover;
     typedef protocols::minimization_packing::symmetry::SymMinMoverOP SymMinMoverOP;
     
+    typedef std::list<core::chemical::AA> ListAA;
+    typedef utility::vector1< ListAA > ListAAs;
+
+    typedef std::list< DesignCtrl > DesignCtrlList;
+    typedef utility::vector1< DesignCtrlList > DesignCtrlLists;
+    
 
 public:
 
     
-    /// @brief
+    /// @brief constructor
     DesSeqOperator2();
     
-    /// @brief
+    /// @brief copy constructor
     DesSeqOperator2( DesSeqOperator2 const & src );
 
-    /// @brief
+    /// @brief destrctor
     virtual ~DesSeqOperator2(){};
 
-    /// @brief
+    /// @brief 
     virtual std::string get_name() const { return "DesSeqOperator2"; }
-    
     
     
 private:
@@ -124,14 +147,64 @@ public:
     void
     scorefxn_relax( ScoreFunctionOP const sfx );
     
+    /// @brief
+    TaskFactoryOP
+    task_factory_design() const { return tf_design_; }
+    
+    /// @brief
+    TaskFactoryOP
+    task_factory_relax() const { return tf_relax_; }
+    
+    
     /// @brief do relax/minimize structure after design
     bool
     relax_structure() const { return relax_structure_; }
     
-    /// @brief
+    /// @brief perform relax/minimize structure after design if true
     void
     relax_structure( bool const b ) { relax_structure_ = b; }
+
+       /// @brief allowed amino acids for design
+    utility::vector1< DesignCtrl > const &
+    resfile_ctrls() const { return resfile_ctrls_; }
     
+    /// @brief set allowed amino acids for design
+    void
+    resfile_ctrls( utility::vector1< DesignCtrl > const & resfile_ctrls )
+    { resfile_ctrls_ = resfile_ctrls; }
+
+    /// @brief allowed amino acids for design
+    ListAAs const &
+    allowed_aas() const { return allowed_aas_; }
+    
+    /// @brief set allowed amino acids for design
+    void
+    allowed_aas( ListAAs const & aas ) { allowed_aas_ = aas; }
+
+    /// @brief allowed amino acids for design
+    DesignCtrlLists const &
+    des_ctrl_lists() const { return des_ctrl_lists_; }
+    
+    /// @brief set allowed amino acids for design
+    void
+    des_ctrl_lists( DesignCtrlLists const & des_ctrl_lists )
+    { des_ctrl_lists_ = des_ctrl_lists; }
+    
+    /// @brief get flag for design only interface or not
+    bool
+    only_interface() const { return only_interface_; }
+    
+    /// @brief set flag for design only interface or not
+    void
+    only_interface( bool const b ) { only_interface_ = b; }
+
+    /// @brief get flag for dump trajectory
+    bool
+    dump_trajectory() const { return dump_trajectory_; }
+    
+    /// @brief set flag for dump trajectory
+    void
+    dump_trajectory( bool const b ) { dump_trajectory_ = b; }
     
     
 public:
@@ -155,30 +228,96 @@ public:
 
 private:
     
+   
+    void
+    pack_and_min(
+                 Size const num_iteration,
+                 PackerTaskOP const design_task,
+                 MoveMapOP const movemap,
+                 Pose & pose );
+
+
+public:
+
+
+    void
+    set_resfile_ctrls(
+        Pose const & pose,
+        String const & resfile,
+        utility::vector1< DesignCtrl > & resfile_ctrls,
+        ListAAs & allowed_aas );
+
+    void
+    remove_exposed_hydrophobics(
+        PoseOP const pose,
+        utility::vector1< DesignCtrl > & resfile_ctrls,
+        ListAAs const & allowed_aas,
+        DesignCtrlLists & des_ctrl_lists );
     
-    void pack_and_min( Size const num_iteration, Pose & pose );
-    
-    void add_history_pose( PoseOP const pose );
+    void
+    remove_buried_polars(
+        PoseOP const pose,
+        utility::vector1< DesignCtrl > & resfile_ctrls,
+        ListAAs const & allowed_aas,
+        DesignCtrlLists & des_ctrl_lists );
+
+    PackerTaskOP
+    set_design_ptask (
+        PoseOP const pose,
+        DesignCtrlLists & des_ctrl_lists,
+        ListAAs const & allowed_aas,        
+        DesignCtrl const selected_des_ctrl,
+        ListAAs const & selected_aas,
+        PackerTaskOP ptask );
+
+
+    void
+    add_history_pose( PoseOP const pose );
     
                         
 private:
     
     
-    /// @brief scorefxn for design
-    ScoreFunctionOP scorefxn_design_;
-    
-    /// @brief scorefxn for design
-    ScoreFunctionOP scorefxn_relax_;
-
-    /// @brief scorefxn for design
-    bool relax_structure_;
+        /// @brief scorefxn for design
+        ScoreFunctionOP scorefxn_design_;
         
-    /// @brief poses for storgae
-    utility::vector1< PoseOP > history_poses_;
+        /// @brief scorefxn for design
+        ScoreFunctionOP scorefxn_relax_;
+
+        /// @brief task factory for design
+        TaskFactoryOP tf_design_;
+
+        /// @brief task factory for relax
+        TaskFactoryOP tf_relax_;
+
+        /// @brief movemap for relax
+        MoveMapOP movemap_;
+
+        /// @brief
+        DesignCtrlLists des_ctrl_lists_;
+
+        /// @brief
+        utility::vector1< DesignCtrl > resfile_ctrls_;
+
+        /// @brief input packer task
+        ListAAs allowed_aas_;
+
+        /// @brief do relax/minimize structure after design
+        bool relax_structure_;            
+
+        /// @brief flag for design only interface
+        bool only_interface_;
+
+        /// @brief flag for dump trajectory
+        bool dump_trajectory_;
+
+        /// @brief poses for storgae
+        utility::vector1< PoseOP > history_poses_;
+        
+        /// @brief storage for job running history
+        std::ostringstream history_;
     
-    /// @brief storage for job running history
-    std::ostringstream history_;
-            
+
 };
 
 

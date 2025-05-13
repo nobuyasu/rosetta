@@ -19,13 +19,13 @@
 #include <core/conformation/Conformation.hh>
 #include <core/conformation/symmetry/SymmetryInfo.hh>
 #include <core/id/AtomID_Mask.fwd.hh>
+#include <core/kinematics/MoveMap.hh>
 #include <core/pack/task/TaskFactory.hh>
 #include <core/pack/task/operation/TaskOperations.hh>
 #include <core/pack/task/PackerTask_.hh>
 #include <core/pose/Pose.hh>
 #include <core/pose/util.hh>
 #include <core/pose/symmetry/util.hh>
-
 #include <core/scoring/dssp/Dssp.hh>
 #include <core/scoring/ScoreFunction.hh>
 #include <core/scoring/ScoreFunctionFactory.hh>
@@ -33,20 +33,16 @@
 #include <core/util/SwitchResidueTypeSet.hh>
 
 #include <protocols/fldsgn/topology/SS_Info2.hh>
-
-#include <protocols/moves/Mover.hh>
-#include <protocols/minimization_packing/symmetry/SymPackRotamersMover.hh>
-#include <protocols/minimization_packing/symmetry/SymMinMover.hh>
-
-#include <protocols/fldsgn/topology/SS_Info2.hh>
 #include <protocols/fldsgn/topology/util.hh>
-
+#include <protocols/moves/Mover.fwd.hh>
+#include <protocols/minimization_packing/PackRotamersMover.hh>
+#include <protocols/minimization_packing/symmetry/SymMinMover.hh>
+#include <protocols/pose_creation/MakePolyXMover.hh>
+#include <protocols/relax/FastRelax.hh>
+#include <protocols/simple_task_operations/RestrictToInterface.hh>
 #include <protocols/simple_filters/PackStatFilter.hh>
 #include <protocols/simple_filters/HolesFilter.hh>
-#include <protocols/minimization_packing/PackRotamersMover.hh>
-#include <protocols/pose_creation/MakePolyXMover.hh>
-
-#include <protocols/relax/FastRelax.hh>
+#include <protocols/task_operations/LimitAromaChi2Operation.hh>
 
 #include <protocols/jd2/Job.hh>
 #include <protocols/jd2/JobDistributor.hh>
@@ -62,31 +58,51 @@
 
 static basic::Tracer TR( "protocols.fldsgn.design.DesSeqOperator2" );
 
-using namespace core;
-
 namespace protocols {
 namespace fldsgn {
 namespace deseq {
 
+using namespace core;
+using namespace core::pack;
+using namespace core::pack::task;
+using namespace core::chemical;
+using core::chemical::AA;
+using core::chemical::aa_none;
+using core::chemical::num_canonical_aas;
+
 
 /// @brief constructor
 DesSeqOperator2::DesSeqOperator2():
-    Mover("DesSeqOperator2"),
+    protocols::moves::Mover("DesSeqOperator2"),
     scorefxn_design_( new ScoreFunction ),
     scorefxn_relax_( new ScoreFunction ),
-    relax_structure_( true )
+    tf_design_( new TaskFactory ),
+    tf_relax_( new TaskFactory ),
+    relax_structure_( true ),
+    only_interface_( false ),
+    dump_trajectory_( false )
 {
     initialize();
 }
 
+
 /// @brief copy constructor
-DesSeqOperator2::DesSeqOperator2( DesSeqOperator2 const & r ):
-    Mover("DesSeqOperator2"),
+DesSeqOperator2::DesSeqOperator2( DesSeqOperator2 const & r ) :
+    protocols::moves::Mover( r ),
     scorefxn_design_( r.scorefxn_design_ ),
     scorefxn_relax_( r.scorefxn_relax_ ),
+    tf_design_( r.tf_design_ ),
+    tf_relax_( r.tf_relax_ ),
+    movemap_( r.movemap_ ),
+    des_ctrl_lists_( r.des_ctrl_lists_ ),
+    resfile_ctrls_( r.resfile_ctrls_ ),
+    allowed_aas_( r.allowed_aas_ ),
     relax_structure_( r.relax_structure_ ),
+    only_interface_( r.only_interface_ ),
+    dump_trajectory_( r.dump_trajectory_ ),
     history_poses_( r.history_poses_ )
 {}
+
 
 /// @brief
 void
@@ -94,31 +110,54 @@ DesSeqOperator2::initialize()
 {
     history_poses_.clear();
     history_.clear();
+    des_ctrl_lists_.clear();
 
     // Setup score functions
     ScoreFunctionOP sfxn_design = core::scoring::get_score_function();
-    sfxn_design->set_weight(core::scoring::fa_rep, 0.44);
-    sfxn_design->set_weight(core::scoring::fa_sol, 0.65);
+    //sfxn_design->set_weight(core::scoring::hbond_bb_sc, 3.0);
+    //fxn_design->set_weight(core::scoring::hbond_sc, 3.0);
     this->scorefxn_design(sfxn_design); 
 
     ScoreFunctionOP sfxn_relax = core::scoring::get_score_function();
     sfxn_relax->set_weight(core::scoring::fa_rep, 0.55);
     sfxn_relax->set_weight(core::scoring::fa_sol, 1.0);
     this->scorefxn_relax(sfxn_relax);
+            
+    using core::pack::task::operation::InitializeFromCommandline;
+    using core::pack::task::operation::RestrictToRepacking;
+    using protocols::task_operations::LimitAromaChi2Operation;
+    using protocols::task_operations::LimitAromaChi2OperationOP;
+    using protocols::simple_task_operations::RestrictToInterface;
+
+    // setup task factory for relax        
+    tf_relax_->push_back ( TaskOperationOP( new InitializeFromCommandline ));
+    tf_relax_->push_back ( TaskOperationOP( new RestrictToRepacking ));
+        
+    LimitAromaChi2OperationOP lac2 = LimitAromaChi2OperationOP( new LimitAromaChi2Operation );
+    lac2->include_trp( true );
+    tf_relax_->push_back ( TaskOperationOP( lac2 ) );
+
+    // setup task factory for design
+    tf_design_->push_back( TaskOperationOP( new InitializeFromCommandline ) );
+    tf_design_->push_back( TaskOperationOP( new LimitAromaChi2Operation   ) );
+    if ( only_interface() ) {   
+        tf_design_->push_back( TaskOperationOP( new RestrictToInterface ) );
+    }
+
 }
     
 
 /// @brief clone
 protocols::moves::MoverOP
 DesSeqOperator2::clone() const {
-    return protocols::moves::MoverOP( new DesSeqOperator2( *this ) );
+    return utility::pointer::make_shared< DesSeqOperator2 >( *this );
 }
 
 
 /// @brief make fresh instance
 protocols::moves::MoverOP
 DesSeqOperator2::fresh_instance() const {
-    return protocols::moves::MoverOP( new DesSeqOperator2() );
+    return utility::pointer::make_shared< DesSeqOperator2 >();
 }
 
 /// @brief scorefxn for design
@@ -156,10 +195,211 @@ DesSeqOperator2::add_history_pose( PoseOP const pose )
     history_poses_.push_back( pose );
 }
 
+/// @brief
+void
+DesSeqOperator2::set_resfile_ctrls(
+    Pose const & pose,
+    String const & resfile,    
+    utility::vector1< DesignCtrl > & resfile_ctrls,
+    ListAAs & allowed_aas
+)
+{
+    TaskFactoryOP tf = TaskFactoryOP( new TaskFactory() );
+    PackerTaskOP ptask = tf->create_packer_task( pose );
+    core::pack::task::parse_resfile( pose, *ptask, resfile );
+
+    resfile_ctrls.resize( pose.total_residue() );
+    allowed_aas.resize( pose.total_residue() );
+
+    for ( Size iaa=1; iaa<=pose.total_residue(); ++iaa ) {
+        String command = ptask->residue_task( iaa ).command_string();
+        if ( command.find( "NATAA" ) != std::string::npos ) {
+            resfile_ctrls[ iaa ] = fldsgn::deseq::nataa;
+            allowed_aas[ iaa ].clear();
+            allowed_aas[ iaa ].push_back(pose.residue( iaa ).aa());
+        } else if ( command.find( "NATRO" ) != std::string::npos ) {
+            resfile_ctrls[ iaa ] = fldsgn::deseq::natrot;
+            allowed_aas[ iaa ].clear();
+            allowed_aas[ iaa ].push_back(pose.residue( iaa ).aa());
+        } else if ( command.find( "PIKAA" ) != std::string::npos ) {
+            resfile_ctrls[ iaa ] = fldsgn::deseq::force_aa;            
+            ResidueTypeCOPs rtypes = ptask->residue_task( iaa ).allowed_residue_types();
+            allowed_aas[ iaa ].clear();
+            for ( auto const & rtype : rtypes ) {
+                allowed_aas[ iaa ].push_back(rtype->aa());
+            }
+        } else {
+            TR << "The command: " << command << " is ignored." << std::endl;
+        }
+    }
+}
+
+
+/// @brief
+PackerTaskOP
+DesSeqOperator2::set_design_ptask (
+    PoseOP const pose,
+    DesignCtrlLists & des_ctrl_lists,
+    ListAAs const & allowed_aas,
+    DesignCtrl const selected_des_ctrl,
+    ListAAs const & selected_aas,
+    PackerTaskOP ptask )
+{
+            
+    PoseOP asym_pose;
+    if ( core::pose::symmetry::is_symmetric( *pose ) ) {
+        core::pose::symmetry::extract_asymmetric_unit( *pose, *asym_pose , false );
+    } else {
+        asym_pose = pose->clone();
+    }
+    
+    for ( Size iaa=1; iaa<=asym_pose->total_residue(); ++iaa ) {
+    
+        DesignCtrlList des_ctrl_list = des_ctrl_lists[ iaa ];
+        DesignCtrlList::iterator i1 = std::find ( des_ctrl_list.begin(), des_ctrl_list.end(), fldsgn::deseq::nataa  );
+        DesignCtrlList::iterator i2 = std::find ( des_ctrl_list.begin(), des_ctrl_list.end(), fldsgn::deseq::natrot );
+        DesignCtrlList::iterator i3 = std::find ( des_ctrl_list.begin(), des_ctrl_list.end(), fldsgn::deseq::force_aa );
+        DesignCtrlList::iterator i4 = std::find ( des_ctrl_list.begin(), des_ctrl_list.end(), selected_des_ctrl );
+
+        if ( i1 == des_ctrl_list.end() && i2 == des_ctrl_list.end() && i3 == des_ctrl_list.end() ) {
+
+            if ( i4 != des_ctrl_list.end() ) {
+                ListAA const aas( selected_aas[ iaa ] );                
+                if ( !aas.empty() ) {
+                    utility::vector1< bool > restrict_aa( num_canonical_aas, false );
+                    for ( ListAA::const_iterator it = aas.begin(); it != aas.end(); ++it ) {
+                        restrict_aa[ *it ] = true;
+                    }
+                    ptask->nonconst_residue_task( iaa ).restrict_absent_canonical_aas( restrict_aa );                   
+                } else {
+                    ptask->nonconst_residue_task( iaa ).restrict_to_repacking();
+                }
+
+            } else {
+                ptask->nonconst_residue_task( iaa ).restrict_to_repacking();
+            }
+
+        } else {
+
+            if ( i1 != des_ctrl_list.end() ) {
+                ptask->nonconst_residue_task( iaa ).prevent_repacking();
+                continue;
+            } else if ( i2 != des_ctrl_list.end() ) {
+                ListAA const aas( allowed_aas[ iaa ] );
+                utility::vector1< bool > restrict_aa( num_canonical_aas, false );
+                for ( ListAA::const_iterator itr=aas.begin(); itr != aas.end(); ++itr ) {
+                    restrict_aa[ *itr ] = true;
+                }
+                ptask->nonconst_residue_task( iaa ).restrict_absent_canonical_aas( restrict_aa );
+                continue;
+            } else if ( i3 != des_ctrl_list.end() ) {
+                ptask->nonconst_residue_task( iaa ).restrict_to_repacking();
+            } else {
+                runtime_assert_msg( false, "Unknown design control found for residue " + boost::lexical_cast<std::string>(iaa) );
+            }
+
+        }
+        
+    }
+        
+    return ptask;
+    
+}
+
+/// @brief 
+PackerTaskOP
+DesSeqOperator2::remove_exposed_hydrophobics (
+    PoseOP const pose,
+    utility::vector1< DesignCtrl > & resfile_ctrls,
+    ListAAs const & allowed_aas,
+    DesignCtrlLists & des_ctrl_lists )
+{
+    
+    ListAA saa;
+    saa.push_back( core::chemical::aa_asn );
+    saa.push_back( core::chemical::aa_arg );
+    saa.push_back( core::chemical::aa_gln );
+    saa.push_back( core::chemical::aa_glu );
+    saa.push_back( core::chemical::aa_lys );
+    saa.push_back( core::chemical::aa_ser );
+    saa.push_back( core::chemical::aa_thr );
+
+    //FindExposedHydrophobics exposed_hp;
+    //utility::vector1< AA > exposed_aa = exposed_hp.find( pose );
+    utility::vector1< AA > exposed_aa( pose->total_residue(), aa_none );
+
+    ListAAs selected_aas( pose->total_residue() );
+    for ( Size iaa=1; iaa<=pose->total_residue(); ++iaa ) {
+        if ( resfile_ctrls[ iaa ].size() > 0 ) {
+            des_ctrl_lists[ iaa ].push_back( resfile_ctrls[ iaa ] );
+            continue;
+        } 
+        if ( exposed_aa[ iaa ] != aa_none ) {
+            selected_aas[ iaa ] = saa;
+            des_ctrl_lists[ iaa ].push_back( fldsgn::deseq::exhp );
+        }
+    }                   
+
+    TaskFactoryOP tf = task_factory_design()->clone();
+    PackerTaskOP ptask = tf->create_packer_task( *pose );
+    set_design_ptask( pose, des_ctrl_lists, allowed_aas, fldsgn::deseq::exhp, selected_aas, ptask );
+    
+    return ptask;
+    
+}
+
+/// @brief
+PackerTaskOP
+DesSeqOperator2::remove_buried_polars(
+    PoseOP const pose,
+    ListAAs const & allowed_aas,
+    DesignCtrlLists & des_ctrl_lists )
+{
+        
+    ListAA erk, avilm;
+    erk.push_back( core::chemical::aa_glu );
+    erk.push_back( core::chemical::aa_arg );
+    erk.push_back( core::chemical::aa_lys );
+    avilm.push_back( core::chemical::aa_ala );
+    avilm.push_back( core::chemical::aa_val );
+    avilm.push_back( core::chemical::aa_ile );
+    avilm.push_back( core::chemical::aa_leu );
+    avilm.push_back( core::chemical::aa_met );
+
+    //FindBuriedUnsatisfiedPolars find_bunsat;
+    //find_bunsat.find( pose );
+    //utility::vector1< Size > bunsat_res = find_bunsat.residues_bunsathb_sc();
+    utility::vector1< Size > bunsat_res( pose->total_residue() );
+
+    // identify surface regions
+    using protocols::fldsgn::topology::calc_sasa_mainchain_w_cb;
+    utility::vector1< Real > rsd_sasa = calc_sasa_mainchain_w_cb( *pose, 3.5 );
+    Real sasa_core ( 10.0 );
+
+    ListAAs selected_aas( pose->total_residue() );
+    for( Size ii=1; ii<=bunsat_res.size(); ++ii ) {        
+        Size res = bunsat_res[ ii ];        
+        if ( !pose->residue( res ).is_protein() ) continue;
+        if ( rsd_sasa[ res ] > sasa_core ) { // for boundary or surface
+            selected_aas[ res ] = erk;
+        } else { // for core
+            selected_aas[ res ] = avilm;
+        }
+    }
+        
+    TaskFactoryOP tf = task_factory_design()->clone();
+    PackerTaskOP ptask = tf->create_packer_task( *pose );
+    set_design_ptask( pose, des_ctrl_lists, allowed_aas, fldsgn::deseq::bpolar, selected_aas, ptask );
+    
+    return ptask;
+}   
+
 // @brief function for running packrotamer mover followed by SymMinimize or FastRelax
 void
-DesSeqOperator2::pack_and_min(
+DesSeqOperator2::pack_and_min(    
     Size const num_iteration,
+    PackerTaskOP const design_task,
+    MoveMapOP const movemap,
     Pose & pose )
 {
         
@@ -174,19 +414,12 @@ DesSeqOperator2::pack_and_min(
         TR << "--- Design Cycle " << ii << " ---" << std::endl;
         
         // --- 1. Packing Step ---
-        if( is_symmetric ) {
-            TR << "Applying PackRotamersMover..." << std::endl;
-            PackRotamersMoverOP pack( new PackRotamersMover() );
-            pack->score_function( scorefxn_design() );
-            // pack->task( task );
-            pack->apply( pose );
-        } else {
-            TR << "Applying PackRotamersMover..." << std::endl;
-            PackRotamersMoverOP pack( new PackRotamersMover() );
-            pack->score_function( scorefxn_design() );
-            // pack->task( task );
-            pack->apply( pose );
-        }
+        TR << "Applying PackRotamersMover..." << std::endl;
+        PackRotamersMoverOP pack( new PackRotamersMover() );
+        pack->score_function( scorefxn_design() );
+        pack->task( design_task );
+        pack->apply( pose );
+
         Real const score_after_pack = scorefxn_design()->score( pose );
         
         // --- 2. Relaxation Step ---
@@ -195,14 +428,15 @@ DesSeqOperator2::pack_and_min(
             if( is_symmetric ) {
                 TR << "Applying SymMinimizeMover..." << std::endl;
                 SymMinMoverOP sym_min_mover( new SymMinMover() );
-                sym_min_mover->score_function( scorefxn_relax() );
-                // sym_min_mover->movemap( movemap_->clone() );
+                sym_min_mover->score_function( scorefxn_relax() );                
+                sym_min_mover->movemap( movemap->clone() );
                 sym_min_mover->apply( pose );
 
             } else {
                 TR << "Applying FastRelax..." << std::endl;
-                FastRelaxOP frlx( new FastRelax( scorefxn_relax() ) );
-                // frlx->set_movemap( movemap_->clone() ); // MoveMap を設定
+                FastRelaxOP frlx( new FastRelax( scorefxn_relax_ ) );
+                frlx->set_task_factory( tf_relax_->clone() );
+                frlx->set_movemap( movemap->clone() );
                 frlx->apply( pose );
             }
             score_after_relax = scorefxn_relax()->score( pose );
@@ -293,7 +527,11 @@ DesSeqOperator2::apply( Pose & pose )
     }
     
     // --- Run Packing and Relaxation Cycles ---
-    pack_and_min( design_cycles, pose );
+    PackerTaskOP design_task = tf_design_->create_task_and_apply_taskoperations( pose );
+    MoveMapOP movemap( new MoveMap() );
+    movemap->set_bb(true);
+    movemap->set_chi(true);
+    pack_and_min( design_cycles, design_task, movemap, pose );
 
     TR << "Design protocol finished for job: " << job_output_name << std::endl;
             

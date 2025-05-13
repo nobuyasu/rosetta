@@ -7,12 +7,12 @@
 // (c) For more information, see http://www.rosettacommons.org. Questions about this can be
 // (c) addressed to University of Washington UW TechTransfer, email: license@u.washington.edu.
 
-/// @file ./src/protocols/fldsgn/deseq/DesSeqOperator2.fwd.hh
+/// @file ./src/protocols/fldsgn/deseq/FindExposedHydrophobics.fwd.hh
 /// @brief
-/// @author Nobuyasu Koga ( nkoga@protein.osaka-u.ac.jp )
+/// @author Nobuyasu Koga ( nkoga@ims.ac.jp )
 
-#ifndef INCLUDED_protocols_fldsgn_deseq_DesSeqOperator2_fwd_hh
-#define INCLUDED_protocols_fldsgn_deseq_DesSeqOperator2_fwd_hh
+#ifndef INCLUDED_protocols_fldsgn_deseq_FindExposedHydrophobics_fwd_hh
+#define INCLUDED_protocols_fldsgn_deseq_FindExposedHydrophobics_fwd_hh
 
 // Utility headers
 #include <utility/pointer/owning_ptr.hh>
@@ -21,9 +21,9 @@ namespace protocols {
 namespace fldsgn {
 namespace deseq {
 
-class DesSeqOperator2;
-typedef utility::pointer::shared_ptr< DesSeqOperator2 > DesSeqOperator2OP;
-typedef utility::pointer::shared_ptr< DesSeqOperator2 const > DesSeqOperator2COP;
+class FindExposedHydrophobics;
+typedef utility::pointer::shared_ptr< FindExposedHydrophobics > FindExposedHydrophobicsOP;
+typedef utility::pointer::shared_ptr< FindExposedHydrophobics const > FindExposedHydrophobicsCOP;
 
 } // namespace deseq
 } // namespace fldsgn

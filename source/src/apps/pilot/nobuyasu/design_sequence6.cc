@@ -259,6 +259,12 @@ main( int argc, char * argv [] )
             
             DesSeqOperator2OP mover = DesSeqOperator2OP( new DesSeqOperator2() );
             mover->apply( pose );
+            
+            // read pdb file
+            // set packer task
+            
+            
+            
             // mover->set_input_ptask( ptask );
             // mover->dump_trj( option[ dump_trj ] );
                                     
