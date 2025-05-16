@@ -15,11 +15,12 @@
 
 // unit headers
 #include <protocols/fldsgn/deseq/DesSeqOperator2.fwd.hh>
-#include <protocols/fldsgn/deseq/FindBuriedUnsatisfiedPolars.hh>
 #include <protocols/fldsgn/deseq/FindExposedHydrophobics.hh>
+#include <protocols/fldsgn/deseq/FineExposeHydrophobics.hh>
 
 // project headers
 #include <core/chemical/AA.hh>
+#include <core/chemical/ResidueType.fwd.hh>
 #include <core/types.hh>
 #include <core/pose/Pose.fwd.hh>
 #include <core/scoring/ScoreFunction.fwd.hh>
@@ -35,10 +36,15 @@
 #include <protocols/minimization_packing/PackRotamersMover.fwd.hh>
 #include <protocols/relax/FastRelax.fwd.hh>
 #include <protocols/minimization_packing/symmetry/SymMinMover.fwd.hh>
+#include <protocols/moves/Mover.fwd.hh>
 #include <protocols/moves/Mover.hh>
 
 #include <utility/vector1.hh>
 #include <sstream>
+#include <list>
+#include <string>
+
+#include <utility/tag/Tag.fwd.hh>
 
 namespace protocols {
 namespace fldsgn {
@@ -103,6 +109,9 @@ public:
     typedef std::list< DesignCtrl > DesignCtrlList;
     typedef utility::vector1< DesignCtrlList > DesignCtrlLists;
     
+    typedef std::list<core::chemical::ResidueTypeCOP> ResidueTypeCOPs;
+    typedef utility::vector1< DesignCtrl > VecDesignCtrl;
+    typedef utility::vector1< PoseOP > PoseOPs;
 
 public:
 
@@ -164,32 +173,20 @@ public:
     void
     relax_structure( bool const b ) { relax_structure_ = b; }
 
-       /// @brief allowed amino acids for design
-    utility::vector1< DesignCtrl > const &
-    resfile_ctrls() const { return resfile_ctrls_; }
-    
-    /// @brief set allowed amino acids for design
+    /// @brief set resfile  
     void
-    resfile_ctrls( utility::vector1< DesignCtrl > const & resfile_ctrls )
-    { resfile_ctrls_ = resfile_ctrls; }
+    set_resfile(const std::string& resfile) { resfile_ = resfile; }
 
-    /// @brief allowed amino acids for design
-    ListAAs const &
-    allowed_aas() const { return allowed_aas_; }
-    
-    /// @brief set allowed amino acids for design
-    void
-    allowed_aas( ListAAs const & aas ) { allowed_aas_ = aas; }
+    /// @brief get resfile
+    const
+    std::string& resfile() const { return resfile_; }
 
-    /// @brief allowed amino acids for design
-    DesignCtrlLists const &
-    des_ctrl_lists() const { return des_ctrl_lists_; }
-    
-    /// @brief set allowed amino acids for design
-    void
-    des_ctrl_lists( DesignCtrlLists const & des_ctrl_lists )
-    { des_ctrl_lists_ = des_ctrl_lists; }
-    
+    /// @brief get resfile controls
+    VecDesignCtrl const & resfile_ctrls() const { return resfile_ctrls_; }
+
+    /// @brief get allowed aas
+    ListAAs const & allowed_aas() const { return allowed_aas_; }
+
     /// @brief get flag for design only interface or not
     bool
     only_interface() const { return only_interface_; }
@@ -211,6 +208,7 @@ public:
 
     
     virtual protocols::moves::MoverOP clone() const;
+
     virtual protocols::moves::MoverOP fresh_instance() const;
 
     virtual void parse_my_tag(
@@ -243,28 +241,38 @@ public:
     void
     set_resfile_ctrls(
         Pose const & pose,
-        String const & resfile,
-        utility::vector1< DesignCtrl > & resfile_ctrls,
-        ListAAs & allowed_aas );
+        String const & resfile );        
 
-    void
+    PackerTaskOP
     remove_exposed_hydrophobics(
         PoseOP const pose,
-        utility::vector1< DesignCtrl > & resfile_ctrls,
+        VecDesignCtrl const & resfile_ctrls,
         ListAAs const & allowed_aas,
         DesignCtrlLists & des_ctrl_lists );
+        
+    /// @brief General design packer task setup
+    PackerTaskOP
+    set_design_general_ptask( PoseOP const pose );
     
-    void
+    /// @brief Return design control lists
+    DesignCtrlLists const & 
+    des_ctrl_lists() const { return des_ctrl_lists_; }
+    
+    /// @brief Return selected amino acids
+    ListAAs const & 
+    selected_aas() const { return selected_aas_; }
+    
+    PackerTaskOP
     remove_buried_polars(
         PoseOP const pose,
-        utility::vector1< DesignCtrl > & resfile_ctrls,
+        VecDesignCtrl const & resfile_ctrls,
         ListAAs const & allowed_aas,
         DesignCtrlLists & des_ctrl_lists );
 
     PackerTaskOP
     set_design_ptask (
         PoseOP const pose,
-        DesignCtrlLists & des_ctrl_lists,
+        DesignCtrlLists const & des_ctrl_lists,
         ListAAs const & allowed_aas,        
         DesignCtrl const selected_des_ctrl,
         ListAAs const & selected_aas,
@@ -278,46 +286,50 @@ public:
 private:
     
     
-        /// @brief scorefxn for design
-        ScoreFunctionOP scorefxn_design_;
+    /// @brief scorefxn for design
+    ScoreFunctionOP scorefxn_design_;
         
-        /// @brief scorefxn for design
-        ScoreFunctionOP scorefxn_relax_;
+    /// @brief scorefxn for design
+    ScoreFunctionOP scorefxn_relax_;
 
-        /// @brief task factory for design
-        TaskFactoryOP tf_design_;
+    /// @brief task factory for design
+    TaskFactoryOP tf_design_;
 
-        /// @brief task factory for relax
-        TaskFactoryOP tf_relax_;
+    /// @brief task factory for relax
+    TaskFactoryOP tf_relax_;
 
-        /// @brief movemap for relax
-        MoveMapOP movemap_;
+    /// @brief movemap for relax
+    MoveMapOP movemap_;
 
-        /// @brief
-        DesignCtrlLists des_ctrl_lists_;
+    /// @brief resfile
+    std::string resfile_;
 
-        /// @brief
-        utility::vector1< DesignCtrl > resfile_ctrls_;
+    /// @brief resfile controls
+    VecDesignCtrl resfile_ctrls_;
 
-        /// @brief input packer task
-        ListAAs allowed_aas_;
+    /// @brief allowed aas
+    ListAAs allowed_aas_;
 
-        /// @brief do relax/minimize structure after design
-        bool relax_structure_;            
+    /// @brief do relax/minimize structure after design
+    bool relax_structure_;            
 
-        /// @brief flag for design only interface
-        bool only_interface_;
+    /// @brief flag for design only interface
+    bool only_interface_;
 
-        /// @brief flag for dump trajectory
-        bool dump_trajectory_;
+    /// @brief flag for dump trajectory
+    bool dump_trajectory_;
 
-        /// @brief poses for storgae
-        utility::vector1< PoseOP > history_poses_;
+    /// @brief poses for storgae
+    PoseOPs history_poses_;
         
-        /// @brief storage for job running history
-        std::ostringstream history_;
+    /// @brief storage for job running history
+    std::ostringstream history_;
     
-
+    /// @brief control lists for design
+    DesignCtrlLists des_ctrl_lists_;
+    
+    /// @brief selected amino acids
+    ListAAs selected_aas_;
 };
 
 

@@ -6,12 +6,13 @@
 // Copyright in the Rosetta software belongs to the developers and their institutions.
 // For more information, see www.rosettacommons.org.
 
-/// @file ./src/protocols/fldsgn/design/DesSeqOperator.cc
+/// @file ./src/protocols/fldsgn/deseq/DesSeqOperator.cc
 /// @brief
 /// @author Nobuyasu Koga ( nkoga@protein.osaka-u.ac.jp )
 
 // unit headers
 #include <protocols/fldsgn/deseq/DesSeqOperator2.hh>
+#include <core/pack/task/ResfileReader.hh>
 
 // Project headers
 #include <basic/Tracer.hh>
@@ -56,7 +57,7 @@
 #include <utility/vector1.hh>
 
 
-static basic::Tracer TR( "protocols.fldsgn.design.DesSeqOperator2" );
+static basic::Tracer TR( "protocols.fldsgn.deseq.DesSeqOperator2" );
 
 namespace protocols {
 namespace fldsgn {
@@ -94,9 +95,7 @@ DesSeqOperator2::DesSeqOperator2( DesSeqOperator2 const & r ) :
     tf_design_( r.tf_design_ ),
     tf_relax_( r.tf_relax_ ),
     movemap_( r.movemap_ ),
-    des_ctrl_lists_( r.des_ctrl_lists_ ),
-    resfile_ctrls_( r.resfile_ctrls_ ),
-    allowed_aas_( r.allowed_aas_ ),
+    resfile_( r.resfile_ ),
     relax_structure_( r.relax_structure_ ),
     only_interface_( r.only_interface_ ),
     dump_trajectory_( r.dump_trajectory_ ),
@@ -108,19 +107,14 @@ DesSeqOperator2::DesSeqOperator2( DesSeqOperator2 const & r ) :
 void
 DesSeqOperator2::initialize()
 {
+
     history_poses_.clear();
     history_.clear();
-    des_ctrl_lists_.clear();
 
-    // Setup score functions
     ScoreFunctionOP sfxn_design = core::scoring::get_score_function();
-    //sfxn_design->set_weight(core::scoring::hbond_bb_sc, 3.0);
-    //fxn_design->set_weight(core::scoring::hbond_sc, 3.0);
     this->scorefxn_design(sfxn_design); 
 
     ScoreFunctionOP sfxn_relax = core::scoring::get_score_function();
-    sfxn_relax->set_weight(core::scoring::fa_rep, 0.55);
-    sfxn_relax->set_weight(core::scoring::fa_sol, 1.0);
     this->scorefxn_relax(sfxn_relax);
             
     using core::pack::task::operation::InitializeFromCommandline;
@@ -199,16 +193,16 @@ DesSeqOperator2::add_history_pose( PoseOP const pose )
 void
 DesSeqOperator2::set_resfile_ctrls(
     Pose const & pose,
-    String const & resfile,    
-    utility::vector1< DesignCtrl > & resfile_ctrls,
-    ListAAs & allowed_aas
-)
+    String const & resfile )
 {
+    VecDesignCtrl resfile_ctrls;
+    ListAAs allowed_aas;
+
     TaskFactoryOP tf = TaskFactoryOP( new TaskFactory() );
     PackerTaskOP ptask = tf->create_packer_task( pose );
     core::pack::task::parse_resfile( pose, *ptask, resfile );
 
-    resfile_ctrls.resize( pose.total_residue() );
+    resfile_ctrls.resize( pose.total_residue(), fldsgn::deseq::vanilla );
     allowed_aas.resize( pose.total_residue() );
 
     for ( Size iaa=1; iaa<=pose.total_residue(); ++iaa ) {
@@ -232,6 +226,10 @@ DesSeqOperator2::set_resfile_ctrls(
             TR << "The command: " << command << " is ignored." << std::endl;
         }
     }
+
+    resfile_ctrls_ = resfile_ctrls;
+    allowed_aas_ = allowed_aas;
+
 }
 
 
@@ -239,7 +237,7 @@ DesSeqOperator2::set_resfile_ctrls(
 PackerTaskOP
 DesSeqOperator2::set_design_ptask (
     PoseOP const pose,
-    DesignCtrlLists & des_ctrl_lists,
+    DesignCtrlLists const & des_ctrl_lists,
     ListAAs const & allowed_aas,
     DesignCtrl const selected_des_ctrl,
     ListAAs const & selected_aas,
@@ -306,15 +304,26 @@ DesSeqOperator2::set_design_ptask (
     
 }
 
-/// @brief 
+/// @brief
+/// @brief General design packer task setup
+PackerTaskOP
+DesSeqOperator2::set_design_general_ptask( PoseOP const pose )
+{
+    TaskFactoryOP tf = task_factory_design()->clone();
+    PackerTaskOP ptask = tf->create_packer_task( *pose );
+    set_design_ptask( pose, des_ctrl_lists(), allowed_aas(), fldsgn::deseq::favaa, selected_aas(), ptask );
+    return ptask;
+}
+
+/// @brief Removes exposed hydrophobic residues by replacing them with polar residues
 PackerTaskOP
 DesSeqOperator2::remove_exposed_hydrophobics (
     PoseOP const pose,
-    utility::vector1< DesignCtrl > & resfile_ctrls,
+    VecDesignCtrl const & resfile_ctrls,
     ListAAs const & allowed_aas,
     DesignCtrlLists & des_ctrl_lists )
 {
-    
+    // List of polar amino acids to replace exposed hydrophobics with
     ListAA saa;
     saa.push_back( core::chemical::aa_asn );
     saa.push_back( core::chemical::aa_arg );
@@ -324,34 +333,47 @@ DesSeqOperator2::remove_exposed_hydrophobics (
     saa.push_back( core::chemical::aa_ser );
     saa.push_back( core::chemical::aa_thr );
 
-    //FindExposedHydrophobics exposed_hp;
-    //utility::vector1< AA > exposed_aa = exposed_hp.find( pose );
-    utility::vector1< AA > exposed_aa( pose->total_residue(), aa_none );
+    // Use the new FineExposeHydrophobics class for more controlled identification
+    FineExposeHydrophobics exposed_hp;
+    
+    // Configure the hydrophobic detection settings (optional)
+    // exposed_hp.set_hydrophobic_set_mode(FineExposeHydrophobics::MODERATE);
+    // exposed_hp.set_threshold_multiplier(0.9); // Can lower thresholds to be more aggressive
+    
+    // Find exposed hydrophobic residues
+    utility::vector1< AA > exposed_aa = exposed_hp.find(*pose);
 
-    ListAAs selected_aas( pose->total_residue() );
-    for ( Size iaa=1; iaa<=pose->total_residue(); ++iaa ) {
-        if ( resfile_ctrls[ iaa ].size() > 0 ) {
-            des_ctrl_lists[ iaa ].push_back( resfile_ctrls[ iaa ] );
+    // Prepare selected amino acids for each position
+    ListAAs selected_aas(pose->total_residue());
+    for (Size iaa=1; iaa<=pose->total_residue(); ++iaa) {
+        // Skip residues with specific design controls from resfile
+        if (resfile_ctrls[iaa] != fldsgn::deseq::vanilla) {
+            des_ctrl_lists[iaa].push_back(resfile_ctrls[iaa]);
             continue;
         } 
-        if ( exposed_aa[ iaa ] != aa_none ) {
-            selected_aas[ iaa ] = saa;
-            des_ctrl_lists[ iaa ].push_back( fldsgn::deseq::exhp );
+        
+        // If this is an exposed hydrophobic, add it to the design list with polar amino acids
+        if (exposed_aa[iaa] != aa_none) {
+            selected_aas[iaa] = saa;
+            des_ctrl_lists[iaa].push_back(fldsgn::deseq::exhp);
+            TR.Debug << "Marking residue " << iaa << " (" << pose->residue(iaa).name1() 
+                     << ") as exposed hydrophobic for redesign" << std::endl;
         }
     }                   
 
+    // Create and configure the packer task
     TaskFactoryOP tf = task_factory_design()->clone();
-    PackerTaskOP ptask = tf->create_packer_task( *pose );
-    set_design_ptask( pose, des_ctrl_lists, allowed_aas, fldsgn::deseq::exhp, selected_aas, ptask );
+    PackerTaskOP ptask = tf->create_packer_task(*pose);
+    set_design_ptask(pose, des_ctrl_lists, allowed_aas, fldsgn::deseq::exhp, selected_aas, ptask);
     
     return ptask;
-    
 }
 
 /// @brief
 PackerTaskOP
 DesSeqOperator2::remove_buried_polars(
     PoseOP const pose,
+    VecDesignCtrl const & resfile_ctrls,
     ListAAs const & allowed_aas,
     DesignCtrlLists & des_ctrl_lists )
 {
@@ -372,15 +394,26 @@ DesSeqOperator2::remove_buried_polars(
     utility::vector1< Size > bunsat_res( pose->total_residue() );
 
     // identify surface regions
-    using protocols::fldsgn::topology::calc_sasa_mainchain_w_cb;
-    utility::vector1< Real > rsd_sasa = calc_sasa_mainchain_w_cb( *pose, 3.5 );
-    Real sasa_core ( 10.0 );
+    //using protocols::fldsgn::topology::calc_sasa_mainchain_w_cb;
+    //utility::vector1< Real > rsd_sasa = calc_sasa_mainchain_w_cb( *pose, 3.5 );
+    //Real sasa_core ( 10.0 );
 
     ListAAs selected_aas( pose->total_residue() );
     for( Size ii=1; ii<=bunsat_res.size(); ++ii ) {        
-        Size res = bunsat_res[ ii ];        
+        Size res = bunsat_res[ ii ];
+
         if ( !pose->residue( res ).is_protein() ) continue;
-        if ( rsd_sasa[ res ] > sasa_core ) { // for boundary or surface
+
+        if ( resfile_ctrls[ res ] != fldsgn::deseq::vanilla ) {
+            des_ctrl_lists[ res ].push_back( resfile_ctrls[ res ] );
+            continue;
+        } 
+       
+        // Use default sasa and threshold values for decision
+        Real sasa_core = 10.0; // Default threshold value
+        Real rsd_sasa = 15.0;  // Assume a default value for testing
+
+        if ( rsd_sasa > sasa_core ) { // for boundary or surface
             selected_aas[ res ] = erk;
         } else { // for core
             selected_aas[ res ] = avilm;
@@ -468,6 +501,7 @@ DesSeqOperator2::pack_and_min(
 void
 DesSeqOperator2::apply( Pose & pose )
 {
+
         
     protocols::jd2::JobOP job_me( protocols::jd2::JobDistributor::get_instance()->current_job() );
     String me( protocols::jd2::JobDistributor::get_instance()->job_outputter()->output_name( job_me ) );
@@ -527,6 +561,14 @@ DesSeqOperator2::apply( Pose & pose )
     }
     
     // --- Run Packing and Relaxation Cycles ---
+
+    // --- 1. Packing Step ---
+    // set packer task    
+    if ( !resfile().empty() ) {
+        set_resfile_ctrls( pose, resfile() );
+    }
+    
+
     PackerTaskOP design_task = tf_design_->create_task_and_apply_taskoperations( pose );
     MoveMapOP movemap( new MoveMap() );
     movemap->set_bb(true);

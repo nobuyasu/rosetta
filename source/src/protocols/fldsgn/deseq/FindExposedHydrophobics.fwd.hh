@@ -7,23 +7,26 @@
 // (c) For more information, see http://www.rosettacommons.org. Questions about this can be
 // (c) addressed to University of Washington UW TechTransfer, email: license@u.washington.edu.
 
-/// @file ./src/protocols/fldsgn/deseq/FindExposedHydrophobics.fwd.hh
+/// @file ./src/protocols/fldsgn/design/FindExposedHydrophobics.fwd.hh
 /// @brief
 /// @author Nobuyasu Koga ( nkoga@ims.ac.jp )
 
 #ifndef INCLUDED_protocols_fldsgn_deseq_FindExposedHydrophobics_fwd_hh
 #define INCLUDED_protocols_fldsgn_deseq_FindExposedHydrophobics_fwd_hh
 
-// Utility headers
 #include <utility/pointer/owning_ptr.hh>
+#include <utility/vector1.fwd.hh>
+
 
 namespace protocols {
 namespace fldsgn {
 namespace deseq {
 
 class FindExposedHydrophobics;
+
 typedef utility::pointer::shared_ptr< FindExposedHydrophobics > FindExposedHydrophobicsOP;
 typedef utility::pointer::shared_ptr< FindExposedHydrophobics const > FindExposedHydrophobicsCOP;
+
 
 } // namespace deseq
 } // namespace fldsgn
