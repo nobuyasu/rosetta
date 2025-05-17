@@ -156,7 +156,6 @@ sources = {
 	"protocols/fldsgn/deseq": [
 		"DesSeqOperator2",
 		"FindExposedHydrophobics",
-		"FineExposeHydrophobics",
 	],
 	"protocols/fldsgn/potentials/sspot": [
 		"HSPairPotential",

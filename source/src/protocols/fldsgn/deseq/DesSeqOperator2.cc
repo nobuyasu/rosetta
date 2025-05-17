@@ -333,15 +333,15 @@ DesSeqOperator2::remove_exposed_hydrophobics (
     saa.push_back( core::chemical::aa_ser );
     saa.push_back( core::chemical::aa_thr );
 
-    // Use the new FineExposeHydrophobics class for more controlled identification
-    FineExposeHydrophobics exposed_hp;
-    
+		// Use the new FindExposedHydrophobics class for more controlled identification
+
     // Configure the hydrophobic detection settings (optional)
     // exposed_hp.set_hydrophobic_set_mode(FineExposeHydrophobics::MODERATE);
     // exposed_hp.set_threshold_multiplier(0.9); // Can lower thresholds to be more aggressive
-    
+
     // Find exposed hydrophobic residues
-    utility::vector1< AA > exposed_aa = exposed_hp.find(*pose);
+    //utility::vector1< AA > exposed_aa = exposed_hp.find(*pose);
+		utility::vector1< AA > exposed_aa;
 
     // Prepare selected amino acids for each position
     ListAAs selected_aas(pose->total_residue());

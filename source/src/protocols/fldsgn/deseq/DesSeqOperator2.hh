@@ -16,7 +16,6 @@
 // unit headers
 #include <protocols/fldsgn/deseq/DesSeqOperator2.fwd.hh>
 #include <protocols/fldsgn/deseq/FindExposedHydrophobics.hh>
-#include <protocols/fldsgn/deseq/FineExposeHydrophobics.hh>
 
 // project headers
 #include <core/chemical/AA.hh>
