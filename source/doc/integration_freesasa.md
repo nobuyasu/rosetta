@@ -239,48 +239,88 @@ This integration enables SASA calculations within Rosetta protocols while mainta
 
 ## General Usage of FreeSASA in Rosetta
 
-To make FreeSASA available to all Rosetta applications without requiring explicit linking in each application, we implemented the following solution:
+To make FreeSASA available to all Rosetta applications without requiring explicit linking in each application, we implemented a better approach that follows the standard external library pattern in Rosetta:
 
-### 1. Link FreeSASA with core.3 Library
+### 1. Register FreeSASA as a Standard External Library
 
-Modified `core.3.cmake` to include the FreeSASA library:
+Updated `external_libraries.cmake` to include FreeSASA in the standard external libraries list:
 ```cmake
-# Link FreeSASA library directly to core.3
-# This ensures all applications linking against core libraries have access to FreeSASA
-SET(FREESASA_LIB_PATH ${CMAKE_SOURCE_DIR}/../../external/freesasa/lib/libfreesasa.a)
-IF(EXISTS ${FREESASA_LIB_PATH})
-  SET(core.3_extra_libs ${FREESASA_LIB_PATH})
-  MESSAGE(STATUS "Adding FreeSASA library to core.3 for general use")
-ELSE()
-  MESSAGE(WARNING "FreeSASA library not found at ${FREESASA_LIB_PATH}")
+# Add FreeSASA to the list of external libraries
+SET(EXTERNAL_LIBRARIES ${EXTERNAL_LIBRARIES} freesasa)
+```
+
+### 2. Define FreeSASA Library in external_freesasa.cmake
+
+Created `external_freesasa.cmake` to define the FreeSASA library sources:
+```cmake
+# FreeSASA external library configuration
+# List all source files needed for the FreeSASA library
+
+SET(freesasa_files
+	../../external/freesasa/src/classifier.c
+	../../external/freesasa/src/classifier_naccess.c
+	# Other source files...
+	../../external/freesasa/src/json.c
+)
+
+# Set any required preprocessor definitions
+SET(freesasa_defines "HAVE_CONFIG_H=0")
+
+# Set any specific compiler flags
+SET(freesasa_compileflags "")
+
+# Set any specific linker flags
+SET(freesasa_linkflags "")
+```
+
+### 3. Improved FreeSASA Module Configuration
+
+Enhanced `modules/freesasa.cmake` to gracefully handle both pre-built and source-built libraries:
+```cmake
+# FreeSASA external library configuration for CMake
+
+# Add FreeSASA include directories
+include_directories(${CMAKE_SOURCE_DIR}/../external/freesasa/include)
+include_directories(${CMAKE_SOURCE_DIR}/../external/freesasa/src)
+
+# Check if a pre-built FreeSASA library exists
+set(FREESASA_LIB_PATH ${CMAKE_SOURCE_DIR}/../../external/freesasa/lib/libfreesasa.a)
+
+if(EXISTS ${FREESASA_LIB_PATH})
+  # Use the pre-built static library directly
+  message(STATUS "Found pre-built FreeSASA library at ${FREESASA_LIB_PATH}")
+  message(STATUS "FreeSASA will be linked through the standard external library system")
+else()
+  # If the pre-built library doesn't exist, we'll still continue since it will be
+  # built from source as part of the build process
+  message(STATUS "No pre-built FreeSASA library found. Will build from source.")
+endif()
+
+# Set platform-specific definitions if needed
+if(APPLE)
+  add_definitions(-DFREESASA_APPLE_PLATFORM)
+ELSEIF(UNIX AND NOT APPLE)
+  add_definitions(-DFREESASA_LINUX_PLATFORM)
+ELSEIF(WIN32)
+  add_definitions(-DFREESASA_WINDOWS_PLATFORM)
 ENDIF()
+
+message(STATUS "FreeSASA module configured for CMake")
 ```
 
-### 2. Modified Build System to Support Extra Libraries
+### 4. Simplified Application CMake Files
 
-Updated `build.post.cmake` to utilize the `_extra_libs` variables:
-```cmake
-FOREACH(LIBRARY ${LIBRARIES})
-  # Check if this library has extra libraries defined
-  IF(DEFINED ${LIBRARY}_extra_libs)
-    TARGET_LINK_LIBRARIES( ${LIBRARY} ${LINK_LAST_LIB} ${${LIBRARY}_extra_libs})
-    MESSAGE(STATUS "${LIBRARY} has extra libraries: ${${LIBRARY}_extra_libs}")
-  ELSE()
-    TARGET_LINK_LIBRARIES( ${LIBRARY} ${LINK_LAST_LIB} )
-  ENDIF()
-  SET( LINK_ROSETTA_LIBS "${LIBRARY};${LINK_ROSETTA_LIBS}" )
-  ADD_DEPENDENCIES( BUILD_ROSETTA_LIBS ${LIBRARY} )
-  SET( LINK_LAST_LIB ${LIBRARY} )
-ENDFOREACH(LIBRARY)
-```
-
-### 3. Simplified Application CMake Files
-
-Now, applications using FreeSASA don't need to explicitly link to it:
+With this approach, applications using FreeSASA don't need to explicitly link to it:
 ```cmake
 ADD_EXECUTABLE( my_app src/path/to/my_app.cc )
-# FreeSASA is automatically included through core.3
+# FreeSASA is automatically included via the standard external library system
 TARGET_LINK_LIBRARIES( my_app ${LINK_ALL_LIBS} )
 ```
 
-This approach centralizes the FreeSASA dependency in the core.3 library, which is already linked by all applications, eliminating the need for explicit linking in each application's CMake file.
+This approach has several advantages:
+- It follows the established pattern for external libraries in Rosetta
+- It doesn't require modifying core.3.cmake, which improves maintainability
+- It properly handles both pre-built and source-built libraries
+- It integrates FreeSASA into the standard build process
+
+All applications linking against the standard Rosetta libraries will automatically have access to FreeSASA functionality.
