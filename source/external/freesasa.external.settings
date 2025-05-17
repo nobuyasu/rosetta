@@ -1,0 +1,53 @@
+# -*- mode:python;indent-tabs-mode:t;show-trailing-whitespace:t; -*-
+#
+# Project settings for FreeSASA external library
+# (c) Copyright Rosetta Commons Member Institutions.
+# (c) This file is part of the Rosetta software suite and is made available under license.
+# (c) The Rosetta software is developed by the contributing members of the Rosetta Commons.
+# (c) For more information, see http://www.rosettacommons.org. Questions about this can be
+# (c) addressed to University of Washington CoMotion, email: license@uw.edu.
+
+sources = {
+	"freesasa/src": [
+		"classifier.c",
+		"coord.c",
+		"freesasa.c",
+		"lexer.c",
+		"nb.c",
+		"node.c",
+		"parser.c",
+		"pdb.c",
+		"rsa.c",
+		"sasa_lr.c",
+		"sasa_sr.c",
+		"selection.c",
+		"structure.c",
+		"util.c",
+		"xml.c",
+		"json.c",
+		"cif.cc",
+		"log.c",
+		"classifier_naccess.c",
+		"classifier_oons.c",
+		"classifier_protor.c",
+	]
+}
+
+include_path = [
+	"freesasa/src",
+	"freesasa/include",
+	"../external/freesasa/include",  # Additional path for CMake
+]
+
+library_path = [
+]
+
+libraries = [
+	"xml2",
+]
+
+subprojects = [
+]
+
+# Supported platforms
+only_with_platforms = ["linux", "macosx"]

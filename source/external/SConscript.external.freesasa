@@ -1,0 +1,47 @@
+# -*- mode:python;indent-tabs-mode:nil;show-trailing-whitespace:t; -*-
+# SConscript for FreeSASA external library
+Import("build", "project")
+from tools.build.settings import Settings, ProjectSettings
+
+# Load the settings file
+settings = Settings.load(build.toplevel + "/external/freesasa.external.settings")
+requested = ProjectSettings(project, settings)
+
+# Add default settings
+actual = ProjectSettings(project)
+actual.sources = requested.sources
+actual.include_path = requested.include_path
+actual.library_path = requested.library_path
+actual.libraries = requested.libraries
+actual.subprojects = requested.subprojects
+
+# Create the environment
+env = build.environment.Clone()
+env.Prepend(**actual.symbols())
+
+# Ensure the include directory is added
+env.Append(CPPPATH=[
+    "#external/freesasa/include",
+    "#external/freesasa/src"
+])
+
+# Build the library
+sources = []
+for package, modules in list(requested.sources.items()):
+    for module in modules:
+        if '.' not in module:
+            source = module + ".cc"
+        else:
+            source = module
+        if package:
+            sources.append("%s/%s" % (package, source))
+        else:
+            sources.append("%s" % (source))
+
+if "static" not in build.options.extras:
+    lib = env.SharedLibrary(project, sources)
+else:
+    lib = env.StaticLibrary(project, sources)
+
+Alias(project, lib)
+Default(project)

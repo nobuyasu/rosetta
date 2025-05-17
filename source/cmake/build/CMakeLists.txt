@@ -49,6 +49,7 @@ INCLUDE(${LINK_RULES}.build.cmake)
 INCLUDE(modules/mpi.cmake)
 INCLUDE(modules/mysql.cmake)
 INCLUDE(modules/hdf5.cmake)
+INCLUDE(modules/freesasa.cmake)
 INCLUDE(build.post.cmake)
 
 # Build the top-level binaries.

@@ -12,6 +12,10 @@ SET(MODE release)
 SET(LINK_RULES shared)
 SET(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
+############ Add FreeSASA include paths
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../../external/freesasa/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../../external/freesasa/src)
+
 ############ Build Rules
 INCLUDE(../build/compiler.cmake)
 INCLUDE(../build/build.pre.cmake)
