@@ -71,34 +71,60 @@ subprojects.append("freesasa")
 
 1. Created `cmake/build/modules/freesasa.cmake`:
 ```cmake
-# FreeSASA module for CMake build
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../external/freesasa/include)
-LINK_DIRECTORIES(${CMAKE_SOURCE_DIR}/../external/freesasa/lib)
+# FreeSASA external library configuration for CMake
+# Add FreeSASA include directory
+include_directories(${CMAKE_SOURCE_DIR}/../external/freesasa/include)
+include_directories(${CMAKE_SOURCE_DIR}/../external/freesasa/src)
+
+# Add FreeSASA source files
+file(GLOB FREESASA_SOURCES 
+  "${CMAKE_SOURCE_DIR}/../external/freesasa/src/*.c"
+  "${CMAKE_SOURCE_DIR}/../external/freesasa/src/*.cc"
+)
+
+# Create FreeSASA library
+add_library(freesasa STATIC ${FREESASA_SOURCES})
+
+# Link XML2 library
+target_link_libraries(freesasa xml2)
+
+# Add to external libraries
+set(LINK_EXTERNAL_LIBS ${LINK_EXTERNAL_LIBS} freesasa)
+
+# Set compilation flags for FreeSASA
+target_compile_definitions(freesasa PRIVATE HAVE_CONFIG_H=0)
+
+message(STATUS "FreeSASA library configured for CMake")
 ```
 
-2. Updated `cmake/build/CMakeLists.txt` to include the module:
+2. Updated `cmake/build_release/CMakeLists.txt` to add include paths:
 ```cmake
-INCLUDE(modules/freesasa.cmake)
-```
-
-3. Updated `cmake/build_release/CMakeLists.txt` to add include paths:
-```cmake
+# Add FreeSASA include paths
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../../external/freesasa/include)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/../../external/freesasa/src)
 ```
 
-4. Created app-specific `test_freesasa.cmake`:
+3. Modified app-specific `build/apps/test_freesasa.cmake`:
 ```cmake
-SET( TARGET test_freesasa )
-SET( SOURCES apps/pilot/nobuyasu/test_freesasa.cc )
-ROSETTA_EXECUTABLE( ${TARGET} ${SOURCES} )
-TARGET_LINK_LIBRARIES( test_freesasa 
-    ${CMAKE_SOURCE_DIR}/../../external/freesasa/lib/libfreesasa.a
-    ${LINK_ALL_LIBS} 
+ADD_EXECUTABLE( test_freesasa ../../src/apps/pilot/nobuyasu//test_freesasa.cc )
+TARGET_LINK_LIBRARIES( test_freesasa ${CMAKE_SOURCE_DIR}/../../external/freesasa/lib/libfreesasa.a ${LINK_ALL_LIBS} )
+SET_TARGET_PROPERTIES( test_freesasa PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS}" )
+SET_TARGET_PROPERTIES( test_freesasa PROPERTIES LINK_FLAGS "${LINK_FLAGS}" )
+ADD_CUSTOM_TARGET( test_freesasa_symlink  ALL)
+# cmake -E create_symlink won't choke if the symlink already exists
+ADD_CUSTOM_COMMAND( TARGET test_freesasa_symlink POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ../../bin/ 
+        COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_BINARY_DIR}/test_freesasa ../../bin/test_freesasa
+        COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_BINARY_DIR}/test_freesasa ../../bin/test_freesasa.macos${COMPILER}${MODE}
+        COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_BINARY_DIR}/test_freesasa ../../bin/test_freesasa.default.macos${COMPILER}${MODE}
 )
+ADD_DEPENDENCIES( test_freesasa_symlink test_freesasa )
+ADD_DEPENDENCIES( test_freesasa BUILD_ROSETTA_LIBS )
+ADD_DEPENDENCIES( pilot_apps test_freesasa_symlink )
+install(TARGETS test_freesasa RUNTIME DESTINATION bin OPTIONAL)
 ```
 
-**Critical insight**: CMake required the full library path, not just `-lfreesasa`.
+**Critical insight**: CMake required the full library path, not just `-lfreesasa`. The exact path to the static library must be specified in TARGET_LINK_LIBRARIES.
 
 ### 3. Application Implementation
 
@@ -158,9 +184,16 @@ freesasa_structure_add_atom(
 cd /path/to/rosetta/source
 ./scons.py -j4 bin mode=release test_freesasa
 
-# CMake build  
+# CMake build with ninja_build.py 
 cd /path/to/rosetta/source
 ./ninja_build.py r -t test_freesasa
+
+# Alternative CMake build manually
+cd /path/to/rosetta/source/cmake
+./make_project.py all
+cd build_release
+cmake -G Ninja
+ninja test_freesasa
 ```
 
 ## Testing and Verification
@@ -192,11 +225,14 @@ For successful integration, you need:
    - `external/SConscript.external.freesasa`
    - Updated `pilot_apps.src.settings.all`
 3. CMake configuration:
-   - `cmake/build/modules/freesasa.cmake`
-   - Updated `cmake/build/CMakeLists.txt`
-   - Updated `cmake/build_release/CMakeLists.txt`
-   - App-specific cmake file (e.g., `test_freesasa.cmake`)
+   - `cmake/build/modules/freesasa.cmake` with FreeSASA library definition
+   - Updated `cmake/build_release/CMakeLists.txt` with include paths
+   - App-specific cmake file with explicit static library linking:
+     ```cmake
+     TARGET_LINK_LIBRARIES( test_freesasa ${CMAKE_SOURCE_DIR}/../../external/freesasa/lib/libfreesasa.a ${LINK_ALL_LIBS} )
+     ```
 4. Correct include paths and compilation flags
 5. Understanding of FreeSASA's current API
+6. Documentation in CLAUDE.md for future reference
 
-This integration enables SASA calculations within Rosetta protocols while maintaining compatibility with both build systems.
+This integration enables SASA calculations within Rosetta protocols while maintaining compatibility with both build systems. The full library path must be specified in CMake configurations for proper linking.
