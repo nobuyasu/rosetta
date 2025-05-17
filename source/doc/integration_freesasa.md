@@ -236,3 +236,51 @@ For successful integration, you need:
 6. Documentation in CLAUDE.md for future reference
 
 This integration enables SASA calculations within Rosetta protocols while maintaining compatibility with both build systems. The full library path must be specified in CMake configurations for proper linking.
+
+## General Usage of FreeSASA in Rosetta
+
+To make FreeSASA available to all Rosetta applications without requiring explicit linking in each application, we implemented the following solution:
+
+### 1. Link FreeSASA with core.3 Library
+
+Modified `core.3.cmake` to include the FreeSASA library:
+```cmake
+# Link FreeSASA library directly to core.3
+# This ensures all applications linking against core libraries have access to FreeSASA
+SET(FREESASA_LIB_PATH ${CMAKE_SOURCE_DIR}/../../external/freesasa/lib/libfreesasa.a)
+IF(EXISTS ${FREESASA_LIB_PATH})
+  SET(core.3_extra_libs ${FREESASA_LIB_PATH})
+  MESSAGE(STATUS "Adding FreeSASA library to core.3 for general use")
+ELSE()
+  MESSAGE(WARNING "FreeSASA library not found at ${FREESASA_LIB_PATH}")
+ENDIF()
+```
+
+### 2. Modified Build System to Support Extra Libraries
+
+Updated `build.post.cmake` to utilize the `_extra_libs` variables:
+```cmake
+FOREACH(LIBRARY ${LIBRARIES})
+  # Check if this library has extra libraries defined
+  IF(DEFINED ${LIBRARY}_extra_libs)
+    TARGET_LINK_LIBRARIES( ${LIBRARY} ${LINK_LAST_LIB} ${${LIBRARY}_extra_libs})
+    MESSAGE(STATUS "${LIBRARY} has extra libraries: ${${LIBRARY}_extra_libs}")
+  ELSE()
+    TARGET_LINK_LIBRARIES( ${LIBRARY} ${LINK_LAST_LIB} )
+  ENDIF()
+  SET( LINK_ROSETTA_LIBS "${LIBRARY};${LINK_ROSETTA_LIBS}" )
+  ADD_DEPENDENCIES( BUILD_ROSETTA_LIBS ${LIBRARY} )
+  SET( LINK_LAST_LIB ${LIBRARY} )
+ENDFOREACH(LIBRARY)
+```
+
+### 3. Simplified Application CMake Files
+
+Now, applications using FreeSASA don't need to explicitly link to it:
+```cmake
+ADD_EXECUTABLE( my_app src/path/to/my_app.cc )
+# FreeSASA is automatically included through core.3
+TARGET_LINK_LIBRARIES( my_app ${LINK_ALL_LIBS} )
+```
+
+This approach centralizes the FreeSASA dependency in the core.3 library, which is already linked by all applications, eliminating the need for explicit linking in each application's CMake file.

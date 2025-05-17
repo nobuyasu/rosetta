@@ -4,22 +4,19 @@
 include_directories(${CMAKE_SOURCE_DIR}/../external/freesasa/include)
 include_directories(${CMAKE_SOURCE_DIR}/../external/freesasa/src)
 
-# Add FreeSASA source files
-file(GLOB FREESASA_SOURCES 
-  "${CMAKE_SOURCE_DIR}/../external/freesasa/src/*.c"
-  "${CMAKE_SOURCE_DIR}/../external/freesasa/src/*.cc"
-)
+# Define the path to the static library
+set(FREESASA_LIB_PATH ${CMAKE_SOURCE_DIR}/../../external/freesasa/lib/libfreesasa.a)
 
-# Create FreeSASA library
-add_library(freesasa STATIC ${FREESASA_SOURCES})
-
-# Link XML2 library
-target_link_libraries(freesasa xml2)
-
-# Add to external libraries
-set(LINK_EXTERNAL_LIBS ${LINK_EXTERNAL_LIBS} freesasa)
-
-# Set compilation flags for FreeSASA
-target_compile_definitions(freesasa PRIVATE HAVE_CONFIG_H=0)
+if(EXISTS ${FREESASA_LIB_PATH})
+  # Use the pre-built static library directly
+  message(STATUS "Using pre-built FreeSASA library at ${FREESASA_LIB_PATH}")
+  
+  # Add the full path to LINK_EXTERNAL_LIBS
+  set(LINK_EXTERNAL_LIBS ${LINK_EXTERNAL_LIBS} ${FREESASA_LIB_PATH})
+  message(STATUS "Added FreeSASA library path directly to LINK_EXTERNAL_LIBS")
+else()
+  # If the pre-built library doesn't exist, we should raise an error
+  message(FATAL_ERROR "Pre-built FreeSASA library not found at ${FREESASA_LIB_PATH}. Please make sure it exists.")
+endif()
 
 message(STATUS "FreeSASA library configured for CMake")
