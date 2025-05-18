@@ -31,6 +31,8 @@
 #include <utility/string_util.hh>
 #include <basic/Tracer.hh>
 
+#include <cmath>
+
 using namespace core;
 using namespace core::chemical::rna;
 using namespace core::pose::rna;
@@ -217,7 +219,7 @@ void MC_RNA_KIC_Sampler::apply( pose::Pose & pose_in ) {
 			//Check whether this is actually a new pose
 			//This isn't really a good way to check if the pose is the same...change this!!
 			Real picked_jacobian = stored_jacobians_[ solution_ - current_jacobians_.size()];
-			if ( std::abs(calculated_jacobian - picked_jacobian) > 0.0000000001 ) { found_move_ = true; }
+			if ( std::fabs(calculated_jacobian - picked_jacobian) > 0.0000000001 ) { found_move_ = true; }
 			//used_current solution remains false, so don't update stored angles, don't update stored loop closer
 		}
 	} else {
@@ -226,7 +228,7 @@ void MC_RNA_KIC_Sampler::apply( pose::Pose & pose_in ) {
 		//Check whether this is actually a new pose
 		//This isn't really a good way to check if the pose is the same...change this!!
 		Real picked_jacobian = stored_jacobians_[ solution_ - current_jacobians_.size()];
-		if ( std::abs(calculated_jacobian - picked_jacobian) > 0.0000000001 ) { found_move_ = true; }
+		if ( std::fabs(calculated_jacobian - picked_jacobian) > 0.0000000001 ) { found_move_ = true; }
 		//used_current solution remains false, so don't update stored angles, don't update stored loop closer
 	}
 

@@ -22,6 +22,7 @@
 
 // Numeric Headers
 #include <numeric/random/random.hh>
+#include <cmath>
 
 using namespace core;
 static basic::Tracer TR( "protocols.recces.sampler.MC_OneTorsion" );
@@ -106,10 +107,10 @@ void MC_OneTorsion::update() {
 	}
 
 	// prevent some numerical changes in thermal_sampler chi.
-	if ( std::abs( update_angle - stored_angle_ ) < 1.0e-5 ) {
+	if ( std::fabs( update_angle - stored_angle_ ) < 1.0e-5 ) {
 		// assume a no op
 		return;
-	} else if ( std::abs( update_angle - active_angle_ ) < 1.0e-5 ) {
+	} else if ( std::fabs( update_angle - active_angle_ ) < 1.0e-5 ) {
 		// this sampler's active_angle was responsible for the update! to prevent numerical issues, use our own active_angle_.
 		set_angle( active_angle_ );
 		return;
