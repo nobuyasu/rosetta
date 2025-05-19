@@ -5,8 +5,8 @@
 #define PACKAGE_NAME "FreeSASA"
 #define PACKAGE_STRING "FreeSASA 2.1.0"
 
-/* Disable JSON support */
-#define FREESASA_DISABLE_JSON 1
+/* Enable JSON support */
+/* #define FREESASA_DISABLE_JSON 1 */
 
 /* Disable CIF support */
 #define FREESASA_DISABLE_CIF 1
