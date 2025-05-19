@@ -23,9 +23,7 @@ set(FREESASA_SOURCES
   ${CMAKE_SOURCE_DIR}/../external/freesasa/src/structure.c
   ${CMAKE_SOURCE_DIR}/../external/freesasa/src/util.c
   ${CMAKE_SOURCE_DIR}/../external/freesasa/src/lexer.c
-  ${CMAKE_SOURCE_DIR}/../external/freesasa/src/xml.c
-  ${CMAKE_SOURCE_DIR}/../external/freesasa/src/cif.cc
-  ${CMAKE_SOURCE_DIR}/../external/freesasa/src/json.c
+  ${CMAKE_SOURCE_DIR}/../external/freesasa/src/log.c
 )
 
 # Check if a pre-built FreeSASA library exists
@@ -44,7 +42,7 @@ else()
   
   # Create FreeSASA library from source
   add_library(freesasa STATIC ${FREESASA_SOURCES})
-  target_compile_definitions(freesasa PRIVATE HAVE_CONFIG_H=0)
+  target_compile_definitions(freesasa PRIVATE HAVE_CONFIG_H=1)
   
   # Add the library to LINK_EXTERNAL_LIBS
   set(LINK_EXTERNAL_LIBS ${LINK_EXTERNAL_LIBS} freesasa)

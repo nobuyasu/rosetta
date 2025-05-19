@@ -817,7 +817,7 @@ int freesasa_structure_add_cif_atom(freesasa_structure *structure,
 }
 
 int freesasa_structure_add_cif_atom_lcl(freesasa_structure *structure,
-                                        freesasa_cif_atom_lcl *atom,
+                                        freesasa_cif_atom *atom,
                                         const freesasa_classifier *classifier,
                                         int options)
 {
@@ -1009,12 +1009,12 @@ cleanup:
     return NULL;
 }
 
-static int chain_group_has_chain(const freesasa_chain_group *chains, chain_label_t chain)
+static int chain_group_has_chain(const struct chains *chains, chain_label_t chain)
 {
     assert(chains);
 
     for (size_t i = 0; i < chains->n; ++i) {
-        if (strncmp(chains->chains[i], chain, sizeof(chain_label_t)) == 0) {
+        if (strncmp(chains->labels[i], chain, sizeof(chain_label_t)) == 0) {
             return 1;
         }
     }
@@ -1024,7 +1024,7 @@ static int chain_group_has_chain(const freesasa_chain_group *chains, chain_label
 
 freesasa_structure *
 freesasa_structure_get_chains_lcl(const freesasa_structure *structure,
-                                  const freesasa_chain_group *chains,
+                                  const struct chains *chains,
                                   const freesasa_classifier *classifier,
                                   int options)
 {

@@ -23,9 +23,6 @@ sources = {
 		"selection.c",
 		"structure.c",
 		"util.c",
-		"xml.c",
-		"json.c",
-		"cif.cc",
 		"log.c",
 		"classifier_naccess.c",
 		"classifier_oons.c",
@@ -36,18 +33,20 @@ sources = {
 include_path = [
 	"freesasa/src",
 	"freesasa/include",
-	"../external/freesasa/include",  # Additional path for CMake
 ]
 
 library_path = [
 ]
 
 libraries = [
-	"xml2",
+]
+
+compileflags = [
+	"-DHAVE_CONFIG_H",
 ]
 
 subprojects = [
 ]
 
 # Supported platforms
-only_with_platforms = ["linux", "macosx"]
+only_with_platforms = ["linux", "macos"]

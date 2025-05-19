@@ -2,9 +2,11 @@
 
 This document summarizes the successful integration of FreeSASA library into Rosetta, highlighting the key insights and solutions discovered through trial and error.
 
+**Last Updated**: January 19, 2025
+
 ## Integration Overview
 
-We successfully integrated FreeSASA into Rosetta using the full integration approach, enabling SASA calculations within Rosetta protocols. The integration works with both SCons and CMake build systems.
+We successfully integrated FreeSASA into Rosetta using the full integration approach, enabling SASA calculations within Rosetta protocols.
 
 ## Key Components
 
@@ -12,38 +14,49 @@ We successfully integrated FreeSASA into Rosetta using the full integration appr
 
 Created `freesasa.external.settings`:
 ```python
-"freesasa" : {
-    "source" : [
-        "freesasa/src/classifier.c",
-        "freesasa/src/classifier_naccess.c",
-        "freesasa/src/classifier_oons.c",
-        "freesasa/src/classifier_protor.c",
-        "freesasa/src/coord.c",
-        "freesasa/src/freesasa.c",
-        "freesasa/src/nb.c",
-        "freesasa/src/node.c",
-        "freesasa/src/parser.c",
-        "freesasa/src/pdb.c",
-        "freesasa/src/rsa.c",
-        "freesasa/src/sasa_lr.c",
-        "freesasa/src/sasa_sr.c",
-        "freesasa/src/selection.c",
-        "freesasa/src/structure.c",
-        "freesasa/src/util.c",
-        "freesasa/src/lexer.c",
-        "freesasa/src/xml.c",
-        "freesasa/src/cif.cc",
-        "freesasa/src/json.c"
-    ],
-    "link_suffixes" : [ ""],
-    "internal_include_paths" : [
-        "freesasa/include"
-    ],
-    "include_cxxflags" : [
-        "-DHAVE_CONFIG_H", "-I./external/freesasa"
-    ],
-    "exclude_from_static" : False,
+sources = {
+    "freesasa/src": [
+        "classifier.c",
+        "coord.c",
+        "freesasa.c",
+        "lexer.c",
+        "nb.c",
+        "node.c",
+        "parser.c",
+        "pdb.c",
+        "rsa.c",
+        "sasa_lr.c",
+        "sasa_sr.c",
+        "selection.c",
+        "structure.c",
+        "util.c",
+        "log.c",
+        "classifier_naccess.c",
+        "classifier_oons.c",
+        "classifier_protor.c",
+    ]
 }
+
+include_path = [
+    "freesasa/src",
+    "freesasa/include",
+]
+
+library_path = [
+]
+
+libraries = [
+]
+
+compileflags = [
+    "-DHAVE_CONFIG_H",
+]
+
+subprojects = [
+]
+
+# Supported platforms
+only_with_platforms = ["linux", "macos"]
 ```
 
 ### 2. Build System Configuration
@@ -163,36 +176,47 @@ freesasa_structure_add_atom(
 
 ## Critical Discoveries
 
-### 1. Path Configuration
-- Used relative paths instead of absolute paths for better portability
-- Copied FreeSASA files directly into `external/freesasa/` directory
-- This approach works across different systems without path modifications
+### 1. Dependency Management
+- Disabled XML and JSON support by setting `USE_XML=0` and `USE_JSON=0` in config.h
+- Removed `xml.c`, `json.c`, and `cif.cc` from build to avoid external dependencies
+- This eliminated the need for json-c and additional libxml2 configuration
 
-### 2. Compilation Requirements
-- Required flag: `-DPTR_STD` for Rosetta's smart pointer system
-- C++17 standard: `-std=c++17`
-- No need for `-lxml2` dependency in our implementation
+### 2. Code Fixes
+- Fixed header file return type: Changed `char` to `char*` for `freesasa_node_atom_chain`
+- Fixed type errors in structure.c:
+  - Changed `freesasa_cif_atom_lcl` to `freesasa_cif_atom`
+  - Changed `freesasa_chain_group` to `struct chains`
+  - Fixed member access from `chains->chains[i]` to `chains->labels[i]`
 
-### 3. API Usage Patterns
-- Hydrogen detection: Check atom name first character (`atom_name[0] == 'H'`)
-- Residue number conversion: Use `std::to_string()` instead of complex formatting
-- Structure creation: Use `freesasa_structure_new()` and check for NULL
+### 3. Configuration Files
+- Created `config.h` with minimal FreeSASA configuration
+- Set `HAVE_CONFIG_H=1` flag for proper compilation
+- Used `-DPTR_STD` for Rosetta's smart pointer system
 
 ### 4. Build Process
+
+Both SCons and CMake build systems work correctly:
+
 ```bash
 # SCons build
 cd /path/to/rosetta/source
-./scons.py -j4 bin mode=release test_freesasa
+./scons.py mode=release freesasa
+./scons.py mode=release test_freesasa
 
 # CMake build with ninja_build.py 
 cd /path/to/rosetta/source
+./ninja_build.py r -remake
 ./ninja_build.py r -t test_freesasa
 
-# Alternative CMake build manually
-cd /path/to/rosetta/source/cmake
+# Clean rebuild for CMake
+cd /path/to/rosetta/source/cmake/build_release
+ninja clean
+rm -rf CMakeFiles CMakeCache.txt *.ninja compile_commands.json
+cd ../
+rm build/external_freesasa.cmake
 ./make_project.py all
 cd build_release
-cmake -G Ninja
+cmake -G Ninja .
 ninja test_freesasa
 ```
 
@@ -219,23 +243,34 @@ Exposed hydrophobic residues with SASA of at least 20 Ų: 16
 ## Minimal Requirements
 
 For successful integration, you need:
-1. FreeSASA source files in `external/freesasa/`
-2. SCons configuration:
-   - `freesasa.external.settings` 
-   - `external/SConscript.external.freesasa`
-   - Updated `pilot_apps.src.settings.all`
-3. CMake configuration:
-   - `cmake/build/modules/freesasa.cmake` with FreeSASA library definition
-   - Updated `cmake/build_release/CMakeLists.txt` with include paths
-   - App-specific cmake file with explicit static library linking:
-     ```cmake
-     TARGET_LINK_LIBRARIES( test_freesasa ${CMAKE_SOURCE_DIR}/../../external/freesasa/lib/libfreesasa.a ${LINK_ALL_LIBS} )
-     ```
-4. Correct include paths and compilation flags
-5. Understanding of FreeSASA's current API
-6. Documentation in CLAUDE.md for future reference
 
-This integration enables SASA calculations within Rosetta protocols while maintaining compatibility with both build systems. The full library path must be specified in CMake configurations for proper linking.
+1. **FreeSASA source files** in `external/freesasa/`
+   - Copy only the necessary source files
+   - Create a minimal `config.h` file
+
+2. **SCons configuration**:
+   - `external/freesasa.external.settings` with the reduced source list
+   - `external/SConscript.external.freesasa` (optional, uses default if not present)
+   - Update `projects.settings` to include freesasa in external libraries
+
+3. **CMake configuration**:
+   - `cmake/build/modules/freesasa.cmake` (optional, for custom configuration)
+   - Let `make_project.py` auto-generate `external_freesasa.cmake`
+   - App-specific cmake files will use standard linking:
+     ```cmake
+     TARGET_LINK_LIBRARIES( test_freesasa ${LINK_ALL_LIBS} )
+     ```
+
+4. **Code modifications**:
+   - Fix type signatures in header files
+   - Fix struct member access in implementation files
+   - Create proper config.h with disabled optional features
+
+5. **Build flags**:
+   - Add `-DHAVE_CONFIG_H` to compile flags
+   - Platform-specific flags are handled automatically
+
+This integration enables SASA calculations within Rosetta protocols while maintaining compatibility with both build systems, without requiring external dependencies.
 
 ## General Usage of FreeSASA in Rosetta
 
