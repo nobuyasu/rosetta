@@ -52,3 +52,14 @@ freesasa_structure_get_chains_lcl(const freesasa_structure *structure,
     if (n) *n = 0;
     return NULL;
 }
+
+/* Missing function for node.c:335 - Get chain label by index */
+const char *freesasa_structure_chain_label(const freesasa_structure *structure, int index)
+{
+    static const char *default_chain = "A";
+    if (structure == NULL || index < 0) {
+        return default_chain;
+    }
+    /* For our stub, just return a default chain ID */
+    return default_chain;
+}
