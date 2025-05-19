@@ -30,6 +30,7 @@ sources = {
 	],
 	"freesasa": [
 		"json_stub.c",
+		"patches.c",
 	]
 }
 

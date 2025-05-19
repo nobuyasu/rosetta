@@ -25,6 +25,7 @@ set(FREESASA_SOURCES
   ${CMAKE_SOURCE_DIR}/../external/freesasa/src/lexer.c
   ${CMAKE_SOURCE_DIR}/../external/freesasa/src/log.c
   ${CMAKE_SOURCE_DIR}/../external/freesasa/json_stub.c
+  ${CMAKE_SOURCE_DIR}/../external/freesasa/patches.c
 )
 
 # Check if a pre-built FreeSASA library exists
