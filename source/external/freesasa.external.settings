@@ -8,58 +8,22 @@
 # (c) addressed to University of Washington CoMotion, email: license@uw.edu.
 
 sources = {
-	"freesasa/src": [
-		"classifier.c",
-		"coord.c",
-		"freesasa.c",
-		"lexer.c",
-		"nb.c",
-		"node.c",
-		"parser.c",
-		"pdb.c",
-		"rsa.c",
-		"sasa_lr.c",
-		"sasa_sr.c",
-		"selection.c",
-		"structure.c",
-		"util.c",
-		"xml.c",
-		"log.c",
-		"classifier_naccess.c",
-		"classifier_oons.c",
-		"classifier_protor.c",
-		# Files that require external dependencies are excluded
-		# "json.c",  # Requires json-c
-		# "cif.cc",  # Requires gemmi
-	],
-	"freesasa": [
-		# Stub implementations for missing functionality
-		"node_patch.c",      # Fixes for node.c
-		"structure_patch.c", # Fixes for structure.c
-		"json_stub.c",       # Stub for json.c functions
-	]
+	# No source files - using precompiled library
 }
 
 include_path = [
-	"freesasa/src",
-	"freesasa/include",
-	"../external/freesasa",  # For config.h
+	"freesasa/include",  # Main FreeSASA headers
 ]
 
 library_path = [
+	"freesasa/lib",  # Path to precompiled library
 ]
 
 libraries = [
+	"freesasa",  # Link with -lfreesasa
 ]
 
 subprojects = [
-]
-
-# Define extra compiler flags for FreeSASA
-defines = [
-	"HAVE_CONFIG_H=1",
-	"FREESASA_DISABLE_JSON=1",  # Disable JSON support
-	"FREESASA_DISABLE_CIF=1",   # Disable CIF support
 ]
 
 # Supported platforms - fixed "macosx" to "macos"
