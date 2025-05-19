@@ -5,8 +5,7 @@
 
 int
 freesasa_write_json(FILE *output, 
-                   const freesasa_result *result,
-                   const freesasa_structure *structure,
+                   freesasa_node *tree,
                    int options)
 {
     /* Don't do anything in the disabled version */

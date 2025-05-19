@@ -29,9 +29,6 @@ sources = {
 		"classifier_protor.c",
 	],
 	"freesasa": [
-		"node_patch.c",
-		"node_patch_fix.c",
-		"structure_patch.c",
 		"json_stub.c",
 	]
 }

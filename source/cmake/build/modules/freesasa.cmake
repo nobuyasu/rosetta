@@ -24,9 +24,6 @@ set(FREESASA_SOURCES
   ${CMAKE_SOURCE_DIR}/../external/freesasa/src/util.c
   ${CMAKE_SOURCE_DIR}/../external/freesasa/src/lexer.c
   ${CMAKE_SOURCE_DIR}/../external/freesasa/src/log.c
-  ${CMAKE_SOURCE_DIR}/../external/freesasa/node_patch.c
-  ${CMAKE_SOURCE_DIR}/../external/freesasa/node_patch_fix.c
-  ${CMAKE_SOURCE_DIR}/../external/freesasa/structure_patch.c
   ${CMAKE_SOURCE_DIR}/../external/freesasa/json_stub.c
 )
 
