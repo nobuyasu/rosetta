@@ -1,11 +1,11 @@
-/* Header for patch functions needed by FreeSASA on macOS */
+/* Header for declaring internal functions needed by node.c on macOS */
 
 #ifndef FREESASA_PATCHES_H
 #define FREESASA_PATCHES_H
 
 #include "freesasa.h"
 
-/* Function declarations for missing _lcl functions */
+/* Function declarations for internal _lcl functions that exist in structure.c */
 
 const char* freesasa_structure_atom_chain_lcl(const freesasa_structure *structure, int atom_index);
 
