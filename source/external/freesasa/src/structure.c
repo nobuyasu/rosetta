@@ -829,7 +829,7 @@ int freesasa_structure_add_cif_atom_lcl(freesasa_structure *structure,
         snprintf(res_number, sizeof res_number, "%s", atom->auth_seq_id);
     }
 
-    char chain_str[2] = {atom->auth_asym_id[0], '\0'};
+    char chain_str[2] = {atom->auth_asym_id, '\0'};
     return structure_add_atom_wopt_impl(structure, atom->auth_atom_id, atom->auth_comp_id,
                                         res_number, atom->type_symbol, chain_str,
                                         atom->Cartn_x, atom->Cartn_y, atom->Cartn_z,

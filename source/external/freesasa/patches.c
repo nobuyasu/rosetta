@@ -38,7 +38,7 @@ int freesasa_structure_chain_atoms_lcl(const freesasa_structure *structure,
                                       int *first,
                                       int *last)
 {
-    return freesasa_structure_chain_atoms(structure, chain, first, last);
+    return freesasa_structure_chain_atoms(structure, chain[0], first, last);
 }
 
 /* Function for node.c:349 - Redirect to public API */
@@ -47,5 +47,5 @@ int freesasa_structure_chain_residues_lcl(const freesasa_structure *structure,
                                          int *first,
                                          int *last)
 {
-    return freesasa_structure_chain_residues(structure, chain, first, last);
+    return freesasa_structure_chain_residues(structure, chain[0], first, last);
 }

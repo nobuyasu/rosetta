@@ -8,6 +8,7 @@
 
 #include "classifier.h"
 #include "freesasa_internal.h"
+#include "../patches.h"
 
 struct atom_properties {
     int is_polar;

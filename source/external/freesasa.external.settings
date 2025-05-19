@@ -37,6 +37,7 @@ sources = {
 include_path = [
 	"freesasa/src",
 	"freesasa/include",
+	"freesasa",  # For patches.h
 ]
 
 library_path = [
