@@ -24,12 +24,13 @@ sources = {
 		"structure.c",
 		"util.c",
 		"xml.c",
-		"json.c",
-		"cif.cc",
 		"log.c",
 		"classifier_naccess.c",
 		"classifier_oons.c",
 		"classifier_protor.c",
+		# Files that require external dependencies are commented out
+		# "json.c",
+		# "cif.cc",
 	]
 }
 
@@ -37,17 +38,25 @@ include_path = [
 	"freesasa/src",
 	"freesasa/include",
 	"../external/freesasa/include",  # Additional path for CMake
+	"../external/freesasa",          # For config.h
 ]
 
 library_path = [
 ]
 
 libraries = [
-	"xml2",
+	# "xml2", # Commented out to avoid dependency on libxml2
 ]
 
 subprojects = [
 ]
 
-# Supported platforms
-only_with_platforms = ["linux", "macosx"]
+# Define extra compiler flags for FreeSASA
+defines = [
+	"HAVE_CONFIG_H=1",
+	"FREESASA_DISABLE_JSON=1",
+	"FREESASA_DISABLE_CIF=1",
+]
+
+# Supported platforms - fixed "macosx" to "macos"
+only_with_platforms = ["linux", "macos"]
