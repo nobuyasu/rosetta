@@ -28,21 +28,22 @@ sources = {
 		"classifier_naccess.c",
 		"classifier_oons.c",
 		"classifier_protor.c",
-		# Files that require external dependencies are commented out
-		"json.c",  # Keep JSON support for now
-		# "cif.cc",  # Disable CIF support
+		# Files that require external dependencies are excluded
+		# "json.c",  # Requires json-c
+		# "cif.cc",  # Requires gemmi
 	],
 	"freesasa": [
-		# Patch files to fix compilation issues
-		"structure_patch.c",
-		"node_patch.c",
+		# Stub implementations for missing functionality
+		"node_patch.c",      # Fixes for node.c
+		"structure_patch.c", # Fixes for structure.c
+		"json_stub.c",       # Stub for json.c functions
 	]
 }
 
 include_path = [
 	"freesasa/src",
 	"freesasa/include",
-	"../external/freesasa",  # For patch files
+	"../external/freesasa",  # For config.h
 ]
 
 library_path = [
@@ -57,8 +58,8 @@ subprojects = [
 # Define extra compiler flags for FreeSASA
 defines = [
 	"HAVE_CONFIG_H=1",
-	# "FREESASA_DISABLE_JSON=1",  # Keep JSON support
-	"FREESASA_DISABLE_CIF=1",    # Disable only CIF support
+	"FREESASA_DISABLE_JSON=1",  # Disable JSON support
+	"FREESASA_DISABLE_CIF=1",   # Disable CIF support
 ]
 
 # Supported platforms - fixed "macosx" to "macos"

@@ -1,14 +1,17 @@
-#ifdef FREESASA_DISABLE_CIF
-/* Fix for conflicting type in node.c */
-char
+#include "freesasa.h"
+#include "freesasa_internal.h"
+#include <string.h>
+
+/* Stub function for node.c:599 - Returns first character of chain string */
+char 
 freesasa_node_atom_chain(const freesasa_node *node)
 {
-    /* Simple implementation that returns the first character of the chain */
-    if (node->type == FREESASA_NODE_ATOM) {
-        if (node->properties.atom.chain && node->properties.atom.chain[0]) {
-            return node->properties.atom.chain[0];
-        }
+    if (node == NULL) return '\0';
+    
+    const char *chain = NULL;
+    if (node->type == FREESASA_NODE_ATOM && 
+        (chain = node->properties.atom.chain) != NULL) {
+        return chain[0];
     }
     return '\0';
 }
-#endif
